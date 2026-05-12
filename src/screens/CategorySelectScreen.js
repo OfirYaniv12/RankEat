@@ -228,6 +228,9 @@ export default function CategorySelectScreen({ navigation }) {
                   value={categoryQuery}
                   onChangeText={handleCategorySearch}
                   onFocus={handleCategoryFocus}
+                  onBlur={() => {
+                    setTimeout(() => setIsCategoryDropdownOpen(false), 200);
+                  }}
                   textAlign="right"
                 />
               </View>
@@ -304,6 +307,9 @@ export default function CategorySelectScreen({ navigation }) {
                   value={searchMode === 'ארצי' ? 'כל הארץ' : locationQuery}
                   onChangeText={handleLocationSearch}
                   onFocus={handleLocationFocus}
+                  onBlur={() => {
+                    setTimeout(() => setIsLocationDropdownOpen(false), 200);
+                  }}
                   textAlign="right"
                   editable={searchMode !== 'ארצי'}
                 />
