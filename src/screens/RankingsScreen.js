@@ -4,11 +4,16 @@ import {
   Text,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   StyleSheet,
   Animated,
   ActivityIndicator,
   StatusBar,
+  Platform,
+  Dimensions,
 } from 'react-native';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { getRankedDishes } from '../database/queries';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 
@@ -73,8 +78,10 @@ export default function RankingsScreen({ navigation, route }) {
       <Animated.View style={[{ opacity: fadeAnim }, styles.itemWrapper]}>
         
         {/* Rank Number Outside the Card */}
-        <View style={[styles.rankContainer, { width: rankBoxSize, height: rankBoxSize }]}>
-          <Text style={[styles.rankText, { fontSize: rankFontSize }]}>{rank}</Text>
+        <View style={styles.rankOuterContainer}>
+          <View style={[styles.rankContainer, { width: rankBoxSize, height: rankBoxSize }]}>
+            <Text style={[styles.rankText, { fontSize: rankFontSize }]}>{rank}</Text>
+          </View>
         </View>
 
         <View style={styles.squareCard}>
@@ -86,8 +93,26 @@ export default function RankingsScreen({ navigation, route }) {
 
           {/* Center Column: Business Info */}
           <View style={styles.centerCol}>
-            <Text style={styles.businessName}>{item.business_name}</Text>
-            <Text style={styles.addressText}>{item.address || 'כתובת לא הוזנה'}</Text>
+            {item.city_name && item.city_name !== '—' ? (
+              <View style={styles.headlineRow}>
+                <View style={styles.headlineHalf}>
+                  <Text style={[styles.businessName, { textAlign: 'right' }]} numberOfLines={2} adjustsFontSizeToFit>
+                    {item.city_name}
+                  </Text>
+                </View>
+                <Text style={[styles.businessName, { marginHorizontal: 6 }]}>|</Text>
+                <View style={styles.headlineHalf}>
+                  <Text style={[styles.businessName, { textAlign: 'left' }]} numberOfLines={2} adjustsFontSizeToFit>
+                    {item.business_name}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.businessName} numberOfLines={2} adjustsFontSizeToFit>
+                {item.business_name}
+              </Text>
+            )}
+            <Text style={styles.addressText} numberOfLines={1}>{item.address || 'כתובת לא הוזנה'}</Text>
             <Text style={styles.reviewCount}>{item.review_count} ביקורות</Text>
           </View>
 
@@ -108,7 +133,11 @@ export default function RankingsScreen({ navigation, route }) {
   const dynamicHeadline = `מחפשים את ה${category.name} הכי טוב ב${locationLabel}`;
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={[styles.container, Platform.OS === 'web' && { height: '100vh' }]}
+      contentContainerStyle={{ paddingBottom: 100 }}
+      showsVerticalScrollIndicator={true} // Force show scrollbar
+    >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
       {/* Header */}
@@ -117,23 +146,17 @@ export default function RankingsScreen({ navigation, route }) {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerCategory}>{category.name}</Text>
-          <Text style={styles.headerLocation}>{locationLabel}</Text>
+          <View style={styles.headlineBanner}>
+            <Text style={styles.mainPageHeadline}>{dynamicHeadline}</Text>
+            {globalAvg > 0 && !loading && !error && (
+              <Text style={styles.mainPageSubtitle}>
+                ממוצע גלובלי: {globalAvg.toFixed(2)}
+              </Text>
+            )}
+          </View>
         </View>
         <View style={{ width: 40 }} />
       </View>
-
-      {/* Title Banner */}
-      {!loading && !error && (
-        <Animated.View style={[styles.banner, { opacity: fadeAnim }]}>
-          <Text style={styles.bannerTitle}>{dynamicHeadline}</Text>
-          {globalAvg > 0 && (
-            <Text style={styles.bannerSubtitle}>
-              ממוצע גלובלי: {globalAvg.toFixed(2)}
-            </Text>
-          )}
-        </Animated.View>
-      )}
 
       {loading ? (
         <View style={styles.center}>
@@ -153,16 +176,16 @@ export default function RankingsScreen({ navigation, route }) {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={dishes}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderDishItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: SPACING.lg }} />}
-        />
+        <View style={styles.listContent}>
+          {dishes.map((item, index) => (
+            <React.Fragment key={item.id.toString()}>
+              {renderDishItem({ item, index })}
+              {index < dishes.length - 1 && <View style={{ height: SPACING.lg }} />}
+            </React.Fragment>
+          ))}
+        </View>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -194,46 +217,37 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   headerCenter: {
+    flex: 1,
     alignItems: 'center',
-  },
-  headerCategory: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
-    color: COLORS.textPrimary,
-    writingDirection: 'rtl',
-  },
-  headerLocation: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    writingDirection: 'rtl',
-    marginTop: 2,
-  },
-  banner: {
-    marginHorizontal: '20%', // Makes line smaller by ~30% effectively visually (20% on each side)
-    marginBottom: SPACING.xl,
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.xl,
-    paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-    alignItems: 'center',
   },
-  bannerTitle: {
+  headlineBanner: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.pill, 
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xl,
+    borderWidth: 1,
+    borderColor: COLORS.accent, 
+    width: '80%', // Slightly wider than the white bullet to create a symmetrical canopy
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center', 
+    marginBottom: SPACING.md,
+    transform: [{ translateX: 13 }], // Mathematically centers exactly over the white bullet!
+  },
+  mainPageHeadline: {
     fontFamily: FONTS.bold,
-    fontSize: 16,
+    fontSize: 20, // Adjusted to fit nicely in the box
     color: COLORS.textPrimary,
     writingDirection: 'rtl',
     textAlign: 'center',
   },
-  bannerSubtitle: {
+  mainPageSubtitle: {
     fontFamily: FONTS.regular,
-    fontSize: 11,
+    fontSize: 14,
     color: COLORS.textSecondary,
-    marginTop: 4,
     writingDirection: 'rtl',
-    textAlign: 'center',
+    marginTop: 4,
   },
   listContent: {
     paddingHorizontal: SPACING.lg,
@@ -245,6 +259,13 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '85%', // Less wide (was taking full width, now constrained)
     justifyContent: 'center',
+    transform: [{ translateX: 65 }], // Shifts the entire block right so the center column's | aligns with the screen center
+  },
+  rankOuterContainer: {
+    width: 80, // Fixed width prevents the card from changing width when rank scales!
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: SPACING.lg, // Pushes the outer container (which holds the rank box) away from the card!
   },
   rankContainer: {
     alignItems: 'center',
@@ -256,7 +277,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 6,
     elevation: 8,
-    marginLeft: SPACING.xl, // Correctly pushes the rank box further right, away from the card
   },
   rankText: {
     fontFamily: FONTS.bold,
@@ -273,7 +293,7 @@ const styles = StyleSheet.create({
     padding: SPACING.md, // Restore internal padding
     borderWidth: 1,
     borderColor: COLORS.textPrimary,
-    minHeight: 200, 
+    height: 200, // Fixed height ensures all bullets are exactly the same size!
     alignItems: 'center', 
   },
   photoPlaceholder: {
@@ -304,6 +324,16 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     textAlign: 'center',
     marginTop: -8, // Push slightly up without breaking layout
+  },
+  headlineRow: {
+    flexDirection: 'row',
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headlineHalf: {
+    flex: 1,
+    justifyContent: 'center',
   },
   addressText: {
     fontFamily: FONTS.regular,
