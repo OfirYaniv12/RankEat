@@ -1,20 +1,83 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { initDatabase } from './src/database/schema';
+import AppNavigator from './src/navigation/AppNavigator';
+
+// GestureHandlerRootView is native-only; skip it on web
+let GestureHandlerRootView;
+if (Platform.OS !== 'web') {
+  GestureHandlerRootView = require('react-native-gesture-handler').GestureHandlerRootView;
+} else {
+  GestureHandlerRootView = ({ children, style }) => (
+    <View style={style}>{children}</View>
+  );
+}
 
 export default function App() {
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    initDatabase()
+      .then(() => setReady(true))
+      .catch((e) => {
+        console.error('Init error:', e);
+        setError(e.message);
+      });
+  }, []);
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>שגיאה: {error}</Text>
+      </View>
+    );
+  }
+
+  if (!ready) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.logo}>🍔</Text>
+        <Text style={styles.appName}>RankEat</Text>
+        <ActivityIndicator size="large" color="#FF6B35" style={{ marginTop: 24 }} />
+        <Text style={styles.loadingText}>מתחבר לשרת...</Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppNavigator />
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  center: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#0D0F14',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logo: {
+    fontSize: 64,
+    marginBottom: 8,
+  },
+  appName: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#F1F5F9',
+    letterSpacing: -1,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 12,
+  },
+  errorText: {
+    color: '#FF6B6B',
+    fontSize: 16,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
 });
