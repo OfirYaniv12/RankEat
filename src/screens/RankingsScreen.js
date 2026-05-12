@@ -133,11 +133,7 @@ export default function RankingsScreen({ navigation, route }) {
   const dynamicHeadline = `מחפשים את ה${category.name} הכי טוב ב${locationLabel}`;
 
   return (
-    <ScrollView 
-      style={[styles.container, Platform.OS === 'web' && { height: '100vh' }]}
-      contentContainerStyle={{ paddingBottom: 100 }}
-      showsVerticalScrollIndicator={true} // Force show scrollbar
-    >
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
       {/* Header */}
@@ -176,16 +172,20 @@ export default function RankingsScreen({ navigation, route }) {
           </Text>
         </View>
       ) : (
-        <View style={styles.listContent}>
+        <ScrollView 
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 100, ...styles.listContent }}
+          showsVerticalScrollIndicator={true} // Show scrollbar
+        >
           {dishes.map((item, index) => (
             <React.Fragment key={item.id.toString()}>
               {renderDishItem({ item, index })}
               {index < dishes.length - 1 && <View style={{ height: SPACING.lg }} />}
             </React.Fragment>
           ))}
-        </View>
+        </ScrollView>
       )}
-    </ScrollView>
+    </View>
   );
 }
 

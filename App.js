@@ -11,6 +11,7 @@ if (Platform.OS !== 'web') {
   GestureHandlerRootView = ({ children, style }) => (
     <View style={style}>{children}</View>
   );
+  
 }
 
 export default function App() {
@@ -46,7 +47,7 @@ export default function App() {
   }
 
   return (
-    <GestureHandlerRootView style={[{ flex: 1 }, Platform.OS === 'web' && { height: '100vh', overflow: 'hidden' }]}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <AppNavigator />
     </GestureHandlerRootView>
   );

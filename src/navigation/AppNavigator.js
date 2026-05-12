@@ -13,7 +13,7 @@ export default function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          cardStyle: { backgroundColor: '#0D0F14' },
+          cardStyle: { backgroundColor: '#0D0F14', flex: 1 },
           animationEnabled: true,
           gestureEnabled: true,
         }}
