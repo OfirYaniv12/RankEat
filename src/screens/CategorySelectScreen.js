@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,40 +6,59 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  Animated,
   ActivityIndicator,
   StatusBar,
   I18nManager,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
-import { getCategories } from '../database/queries';
+import { getCategories, getDistricts, getCities } from '../database/queries';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 
 // Force RTL
 I18nManager.forceRTL(true);
 
+const SEARCH_MODES = [
+  { id: 'עירוני', label: 'עירוני' },
+  { id: 'מחוזי', label: 'מחוזי' },
+  { id: 'ארצי', label: 'ארצי' },
+];
+
 export default function CategorySelectScreen({ navigation }) {
   const [categories, setCategories] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [search, setSearch] = useState('');
+  const [districts, setDistricts] = useState([]);
+  const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  // Category State
+  const [categoryQuery, setCategoryQuery] = useState('');
+  const [filteredCategories, setFilteredCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+
+  // Location State
+  const [searchMode, setSearchMode] = useState('עירוני');
+  const [showModeDropdown, setShowModeDropdown] = useState(false);
+
+  const [locationQuery, setLocationQuery] = useState('');
+  const [filteredLocations, setFilteredLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
 
   useEffect(() => {
-    loadCategories();
+    loadData();
   }, []);
 
-  const loadCategories = async () => {
+  const loadData = async () => {
     try {
-      const data = await getCategories();
-      setCategories(data);
-      setFiltered(data);
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]).start();
+      const [cats, dists, cits] = await Promise.all([
+        getCategories(),
+        getDistricts(),
+        getCities(),
+      ]);
+      setCategories(cats);
+      setDistricts(dists);
+      setCities(cits);
     } catch (e) {
       console.error(e);
     } finally {
@@ -47,101 +66,240 @@ export default function CategorySelectScreen({ navigation }) {
     }
   };
 
-  const handleSearch = (text) => {
-    setSearch(text);
-    setFiltered(
-      categories.filter((c) => c.name.includes(text) || c.name.toLowerCase().includes(text.toLowerCase()))
-    );
+  // --- Handlers for Category ---
+  const handleCategorySearch = (text) => {
+    setCategoryQuery(text);
+    setSelectedCategory(null);
+    if (text.length > 0) {
+      setFilteredCategories(
+        categories.filter((c) =>
+          c.name.toLowerCase().includes(text.toLowerCase())
+        )
+      );
+      setShowCategoryDropdown(true);
+    } else {
+      setShowCategoryDropdown(false);
+    }
   };
 
-  const handleSelect = (category) => {
-    setSelected(category.id);
-    setTimeout(() => {
-      navigation.navigate('LocationFilter', { category });
-    }, 150);
+  const selectCategory = (item) => {
+    setSelectedCategory(item);
+    setCategoryQuery(item.name);
+    setShowCategoryDropdown(false);
+    Keyboard.dismiss();
   };
 
-  const CATEGORY_ICONS = {
-    'המבורגר': '🍔',
-    'פיצה': '🍕',
-    'סושי': '🍣',
-    'שווארמה': '🌯',
-    'פלאפל': '🧆',
-    'סטייק': '🥩',
-    'פסטה': '🍝',
-    'סלט': '🥗',
+  // --- Handlers for Mode ---
+  const selectMode = (mode) => {
+    setSearchMode(mode);
+    setShowModeDropdown(false);
+    // Reset location
+    setSelectedLocation(null);
+    setLocationQuery('');
+    setShowLocationDropdown(false);
   };
 
-  const renderCategory = ({ item, index }) => {
-    const isSelected = selected === item.id;
-    const icon = CATEGORY_ICONS[item.name] || '🍽️';
-    return (
-      <Animated.View
-        style={{
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        }}
-      >
-        <TouchableOpacity
-          style={[styles.categoryCard, isSelected && styles.categoryCardSelected]}
-          onPress={() => handleSelect(item)}
-          activeOpacity={0.75}
-        >
-          <Text style={styles.categoryIcon}>{icon}</Text>
-          <Text style={[styles.categoryName, isSelected && styles.categoryNameSelected]}>
-            {item.name}
-          </Text>
-          {isSelected && <Text style={styles.checkmark}>✓</Text>}
-        </TouchableOpacity>
-      </Animated.View>
-    );
+  // --- Handlers for Location ---
+  const handleLocationSearch = (text) => {
+    setLocationQuery(text);
+    setSelectedLocation(null);
+    
+    if (text.length > 0 && searchMode !== 'ארצי') {
+      const sourceData = searchMode === 'עירוני' ? cities : districts;
+      setFilteredLocations(
+        sourceData.filter((l) =>
+          l.name.toLowerCase().includes(text.toLowerCase())
+        )
+      );
+      setShowLocationDropdown(true);
+    } else {
+      setShowLocationDropdown(false);
+    }
+  };
+
+  const selectLocation = (item) => {
+    setSelectedLocation(item);
+    setLocationQuery(item.name);
+    setShowLocationDropdown(false);
+    Keyboard.dismiss();
+  };
+
+  // --- Submit ---
+  const handleSearchSubmit = () => {
+    if (!selectedCategory) {
+      alert('יש לבחור קטגוריה');
+      return;
+    }
+    if (searchMode !== 'ארצי' && !selectedLocation) {
+      alert('יש לבחור מיקום או לשנות חיפוש לארצי');
+      return;
+    }
+
+    navigation.navigate('Rankings', {
+      category: selectedCategory,
+      district: searchMode === 'מחוזי' ? selectedLocation : null,
+      city: searchMode === 'עירוני' ? selectedLocation : null,
+    });
+  };
+
+  const closeAllDropdowns = () => {
+    setShowCategoryDropdown(false);
+    setShowModeDropdown(false);
+    setShowLocationDropdown(false);
+    Keyboard.dismiss();
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+    <TouchableWithoutFeedback onPress={closeAllDropdowns}>
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>בחר קטגוריה</Text>
-        <View style={{ width: 40 }} />
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>מה אוכלים?</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {loading ? (
+          <ActivityIndicator size="large" color={COLORS.accent} style={{ marginTop: 60 }} />
+        ) : (
+          <View style={styles.content}>
+            
+            {/* Row 1: Category Search */}
+            <View style={[styles.inputGroup, { zIndex: 3 }]}>
+              <Text style={styles.label}>קטגוריה</Text>
+              <View style={styles.searchBox}>
+                <Text style={styles.searchIcon}>🔍</Text>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="חפש קטגוריה..."
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={categoryQuery}
+                  onChangeText={handleCategorySearch}
+                  onFocus={() => {
+                    closeAllDropdowns();
+                    if (categoryQuery.length > 0) setShowCategoryDropdown(true);
+                  }}
+                  textAlign="right"
+                />
+              </View>
+
+              {/* Category Dropdown */}
+              {showCategoryDropdown && (
+                <View style={styles.dropdown}>
+                  {filteredCategories.length > 0 ? (
+                    filteredCategories.slice(0, 5).map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.dropdownItem}
+                        onPress={() => selectCategory(item)}
+                      >
+                        <Text style={styles.dropdownText}>{item.name}</Text>
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <View style={styles.dropdownItem}>
+                      <Text style={styles.errorText}>לא נמצאו מקומות מתאימים לחיפוש :(</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+
+            {/* Row 2: Search Mode & Location */}
+            <View style={[styles.row2, { zIndex: 2 }]}>
+              
+              {/* Right Side: Location Input */}
+              <View style={[styles.inputGroup, { flex: 1, zIndex: 2, marginRight: SPACING.md }]}>
+                <Text style={styles.label}>איפה?</Text>
+                <View style={[styles.searchBox, searchMode === 'ארצי' && styles.disabledBox]}>
+                  <Text style={styles.searchIcon}>📍</Text>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder={searchMode === 'ארצי' ? 'כל הארץ' : 'הזן מיקום...'}
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={searchMode === 'ארצי' ? 'כל הארץ' : locationQuery}
+                    onChangeText={handleLocationSearch}
+                    onFocus={() => {
+                      closeAllDropdowns();
+                      if (locationQuery.length > 0 && searchMode !== 'ארצי') setShowLocationDropdown(true);
+                    }}
+                    textAlign="right"
+                    editable={searchMode !== 'ארצי'}
+                  />
+                </View>
+
+                {/* Location Dropdown */}
+                {showLocationDropdown && (
+                  <View style={styles.dropdown}>
+                    {filteredLocations.length > 0 ? (
+                      filteredLocations.slice(0, 5).map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={styles.dropdownItem}
+                          onPress={() => selectLocation(item)}
+                        >
+                          <Text style={styles.dropdownText}>{item.name}</Text>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <View style={styles.dropdownItem}>
+                        <Text style={styles.errorText}>לא נמצאו מקומות מתאימים לחיפוש :(</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+
+              {/* Left Side: Search Mode (Flex direction row-reverse makes this visually on the right) */}
+              <View style={[styles.inputGroup, { width: 110, zIndex: 3 }]}>
+                <Text style={styles.label}>איך לחפש?</Text>
+                <TouchableOpacity
+                  style={styles.modeSelectorBox}
+                  onPress={() => {
+                    const nextState = !showModeDropdown;
+                    closeAllDropdowns();
+                    setShowModeDropdown(nextState);
+                  }}
+                >
+                  <Text style={styles.modeText}>{searchMode}</Text>
+                  <Text style={styles.dropdownArrow}>▼</Text>
+                </TouchableOpacity>
+
+                {/* Mode Dropdown */}
+                {showModeDropdown && (
+                  <View style={[styles.dropdown, { width: '100%' }]}>
+                    {SEARCH_MODES.map((mode) => (
+                      <TouchableOpacity
+                        key={mode.id}
+                        style={styles.dropdownItem}
+                        onPress={() => selectMode(mode.id)}
+                      >
+                        <Text style={[styles.dropdownText, searchMode === mode.id && { color: COLORS.accent }]}>
+                          {mode.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+            </View>
+
+            {/* CTA Button */}
+            <View style={styles.btnContainer}>
+              <TouchableOpacity style={styles.submitBtn} onPress={handleSearchSubmit}>
+                <Text style={styles.submitBtnText}>חפש עכשיו</Text>
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        )}
       </View>
-
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="חיפוש קטגוריה..."
-          placeholderTextColor={COLORS.textSecondary}
-          value={search}
-          onChangeText={handleSearch}
-          textAlign="right"
-          returnKeyType="search"
-        />
-      </View>
-
-      {/* Categories List */}
-      {loading ? (
-        <ActivityIndicator size="large" color={COLORS.accent} style={{ marginTop: 60 }} />
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderCategory}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          numColumns={2}
-          columnWrapperStyle={styles.columnWrapper}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>לא נמצאו קטגוריות</Text>
-          }
-        />
-      )}
-    </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -174,85 +332,135 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 20,
+    fontSize: 22,
     color: COLORS.textPrimary,
     writingDirection: 'rtl',
   },
-  searchContainer: {
+  content: {
+    paddingHorizontal: SPACING.xl, // not full-width
+    paddingTop: SPACING.xl,
+  },
+  row2: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    marginTop: SPACING.xl,
+    zIndex: 2,
+  },
+  inputGroup: {
+    position: 'relative',
+  },
+  label: {
+    fontFamily: FONTS.semibold,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    writingDirection: 'rtl',
+    marginBottom: SPACING.xs,
+  },
+  searchBox: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.xl,
-    marginHorizontal: SPACING.lg,
-    marginBottom: SPACING.md,
+    borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    height: 52,
+    height: 50,
+  },
+  modeSelectorBox: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    height: 50,
+  },
+  disabledBox: {
+    backgroundColor: COLORS.surfaceHover,
+    opacity: 0.6,
   },
   searchIcon: {
     fontSize: 18,
     marginLeft: SPACING.sm,
   },
+  dropdownArrow: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginRight: SPACING.xs,
+  },
   searchInput: {
     flex: 1,
     fontFamily: FONTS.regular,
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.textPrimary,
     textAlign: 'right',
   },
-  listContent: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xl,
+  modeText: {
+    fontFamily: FONTS.regular,
+    fontSize: 15,
+    color: COLORS.textPrimary,
   },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-  },
-  categoryCard: {
-    flex: 1,
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    borderWidth: 1.5,
+  dropdown: {
+    position: 'absolute',
+    top: 80, // below label and input
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.surfaceHover,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
     borderColor: COLORS.border,
-    marginHorizontal: 4,
-    minHeight: 110,
-    justifyContent: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    overflow: 'hidden',
+    zIndex: 10,
   },
-  categoryCardSelected: {
-    borderColor: COLORS.accent,
-    backgroundColor: COLORS.accent + '18',
+  dropdownItem: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  categoryIcon: {
-    fontSize: 36,
-    marginBottom: SPACING.sm,
-  },
-  categoryName: {
-    fontFamily: FONTS.semibold,
+  dropdownText: {
+    fontFamily: FONTS.regular,
     fontSize: 15,
     color: COLORS.textPrimary,
     writingDirection: 'rtl',
-    textAlign: 'center',
+    textAlign: 'right',
   },
-  categoryNameSelected: {
-    color: COLORS.accent,
-  },
-  checkmark: {
-    position: 'absolute',
-    top: 8,
-    left: 10,
-    fontSize: 16,
-    color: COLORS.accent,
-    fontFamily: FONTS.bold,
-  },
-  emptyText: {
+  errorText: {
     fontFamily: FONTS.regular,
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.xxl,
+    writingDirection: 'rtl',
+    textAlign: 'right',
+  },
+  btnContainer: {
+    marginTop: 40,
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  submitBtn: {
+    backgroundColor: COLORS.accent,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xxl,
+    borderRadius: RADIUS.pill,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  submitBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 18,
+    color: '#FFFFFF',
     writingDirection: 'rtl',
   },
 });

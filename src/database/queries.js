@@ -24,6 +24,17 @@ export const getDistricts = async () => {
   return data;
 };
 
+// ─── ALL CITIES ─────────────────────────────────────────────────────────────
+export const getCities = async () => {
+  const { data, error } = await supabase
+    .from('cities')
+    .select('*')
+    .order('name', { ascending: true });
+
+  if (error) throw new Error(`getCities: ${error.message}`);
+  return data;
+};
+
 // ─── CITIES ─────────────────────────────────────────────────────────────────
 export const getCitiesByDistrict = async (districtId) => {
   const { data, error } = await supabase
