@@ -191,9 +191,9 @@ export default function CategorySelectScreen({ navigation }) {
   };
 
   const getLocationPlaceholder = () => {
-    if (searchMode === 'ארצי') return 'כל הארץ';
+    if (searchMode === 'ארצי') return 'כל הארץ\u200F';
     if (locationQuery.length > 0) return '';
-    return searchMode === 'עירוני' ? 'הזן את שם העיר המבוקשת' : 'הזן את שם המחוז המבוקש';
+    return searchMode === 'עירוני' ? 'הזן את שם העיר המבוקשת\u200F' : 'הזן את שם המחוז המבוקש\u200F';
   };
 
   return (
@@ -223,7 +223,7 @@ export default function CategorySelectScreen({ navigation }) {
                 <Text style={styles.searchIcon}>🔍</Text>
                 <TextInput
                   style={styles.searchInput}
-                  placeholder={categoryQuery.length > 0 ? "" : "מה אוכלים?"}
+                  placeholder={categoryQuery.length > 0 ? "" : "מה אוכלים?\u200F"}
                   placeholderTextColor={COLORS.textSecondary}
                   value={categoryQuery}
                   onChangeText={handleCategorySearch}
@@ -248,7 +248,7 @@ export default function CategorySelectScreen({ navigation }) {
                     ))
                   ) : categoryQuery.length > 0 ? (
                     <View style={styles.dropdownItem}>
-                      <Text style={styles.errorText}>לא נמצאו מקומות מתאימים לחיפוש :(</Text>
+                      <Text style={styles.errorText}>נראה שאנחנו לא מכירים את זה עדיין :(</Text>
                     </View>
                   ) : null}
                 </View>
@@ -257,12 +257,11 @@ export default function CategorySelectScreen({ navigation }) {
           </View>
 
           {/* Row 2: Search Mode (Right) & Location (Left) */}
-          {/* Using flex-direction: row with RTL places the first child on the right. 
-              We explicitly place Search Mode first. */}
+          {/* Using flex-direction: row-reverse with explicit item placement guarantees correct RTL. */}
           <View style={[styles.inputRow, styles.row2, { zIndex: 2 }]}>
             
-            {/* Right Side: Search Mode (45%) */}
-            <View style={[styles.inputGroup, { flex: 0.45, zIndex: 3, marginLeft: SPACING.md }]}>
+            {/* Right Side: Search Mode (30%) */}
+            <View style={[styles.inputGroup, { flex: 0.3, zIndex: 3, marginLeft: SPACING.md }]}>
               <Text style={styles.label}>איך לחפש?</Text>
               <TouchableOpacity
                 style={styles.modeSelectorBox}
@@ -294,8 +293,8 @@ export default function CategorySelectScreen({ navigation }) {
               )}
             </View>
 
-            {/* Left Side: Location Input (55%) */}
-            <View style={[styles.inputGroup, { flex: 0.55, zIndex: 2, justifyContent: 'flex-end' }]}>
+            {/* Left Side: Location Input (70%) */}
+            <View style={[styles.inputGroup, { flex: 0.7, zIndex: 2, justifyContent: 'flex-end' }]}>
               <View style={[styles.searchBox, searchMode === 'ארצי' && styles.disabledBox]}>
                 <Text style={styles.searchIcon}>📍</Text>
                 <TextInput
@@ -326,7 +325,7 @@ export default function CategorySelectScreen({ navigation }) {
                     ))
                   ) : locationQuery.length > 0 ? (
                     <View style={styles.dropdownItem}>
-                      <Text style={styles.errorText}>לא נמצאו מקומות מתאימים לחיפוש :(</Text>
+                      <Text style={styles.errorText}>נראה שעוד לא הגענו למיקום הזה :(</Text>
                     </View>
                   ) : null}
                 </View>
@@ -389,7 +388,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   row2: {
-    flexDirection: 'row', // Right-to-Left visually in RTL
+    flexDirection: 'row-reverse', // Forces first item (Search Mode) to the RIGHT
     alignItems: 'flex-end',
     marginTop: SPACING.xl,
   },
@@ -496,10 +495,11 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     backgroundColor: COLORS.accent,
-    paddingVertical: SPACING.md,
-    width: '50%', // Exactly 50% per user request
+    paddingVertical: 18, // Increased height visually
+    width: '35%', // Decreased width by 30%
     borderRadius: RADIUS.pill,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

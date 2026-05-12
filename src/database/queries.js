@@ -6,33 +6,36 @@ const BAYESIAN_M = 10; // minimum votes threshold
 export const getCategories = async () => {
   const { data, error } = await supabase
     .from('categories')
-    .select('*')
+    .select('id, name')
     .order('name', { ascending: true });
-
+    
+  console.log('Fetched Categories from Supabase:', data);
   if (error) throw new Error(`getCategories: ${error.message}`);
-  return data;
+  return data || [];
 };
 
 // ─── DISTRICTS ──────────────────────────────────────────────────────────────
 export const getDistricts = async () => {
   const { data, error } = await supabase
     .from('districts')
-    .select('*')
+    .select('id, name')
     .order('name', { ascending: true });
 
+  console.log('Fetched Districts from Supabase:', data);
   if (error) throw new Error(`getDistricts: ${error.message}`);
-  return data;
+  return data || [];
 };
 
 // ─── ALL CITIES ─────────────────────────────────────────────────────────────
 export const getCities = async () => {
   const { data, error } = await supabase
     .from('cities')
-    .select('*')
+    .select('id, name')
     .order('name', { ascending: true });
 
+  console.log('Fetched Cities from Supabase:', data);
   if (error) throw new Error(`getCities: ${error.message}`);
-  return data;
+  return data || [];
 };
 
 // ─── CITIES ─────────────────────────────────────────────────────────────────
