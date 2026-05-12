@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
   ActivityIndicator,
   StatusBar,
@@ -66,19 +65,41 @@ export default function CategorySelectScreen({ navigation }) {
     }
   };
 
+  // --- Helpers for Initial Dropdown State ---
+  const getInitialCategories = () => {
+    return [...categories].sort((a, b) => a.name.localeCompare(b.name, 'he')).slice(0, 4);
+  };
+
+  const getInitialLocations = () => {
+    const sourceData = searchMode === 'עירוני' ? cities : districts;
+    return [...sourceData].sort((a, b) => a.name.localeCompare(b.name, 'he')).slice(0, 4);
+  };
+
   // --- Handlers for Category ---
   const handleCategorySearch = (text) => {
     setCategoryQuery(text);
     setSelectedCategory(null);
     if (text.length > 0) {
       setFilteredCategories(
-        categories.filter((c) =>
-          c.name.toLowerCase().includes(text.toLowerCase())
-        )
+        categories
+          .filter((c) => c.name.toLowerCase().includes(text.toLowerCase()))
+          .sort((a, b) => a.name.localeCompare(b.name, 'he'))
+          .slice(0, 4)
       );
       setShowCategoryDropdown(true);
     } else {
-      setShowCategoryDropdown(false);
+      setFilteredCategories(getInitialCategories());
+      setShowCategoryDropdown(true);
+    }
+  };
+
+  const handleCategoryFocus = () => {
+    closeAllDropdowns();
+    if (categoryQuery.length > 0) {
+      handleCategorySearch(categoryQuery);
+    } else {
+      setFilteredCategories(getInitialCategories());
+      setShowCategoryDropdown(true);
     }
   };
 
@@ -104,16 +125,31 @@ export default function CategorySelectScreen({ navigation }) {
     setLocationQuery(text);
     setSelectedLocation(null);
     
-    if (text.length > 0 && searchMode !== 'ארצי') {
+    if (searchMode === 'ארצי') return;
+
+    if (text.length > 0) {
       const sourceData = searchMode === 'עירוני' ? cities : districts;
       setFilteredLocations(
-        sourceData.filter((l) =>
-          l.name.toLowerCase().includes(text.toLowerCase())
-        )
+        sourceData
+          .filter((l) => l.name.toLowerCase().includes(text.toLowerCase()))
+          .sort((a, b) => a.name.localeCompare(b.name, 'he'))
+          .slice(0, 4)
       );
       setShowLocationDropdown(true);
     } else {
-      setShowLocationDropdown(false);
+      setFilteredLocations(getInitialLocations());
+      setShowLocationDropdown(true);
+    }
+  };
+
+  const handleLocationFocus = () => {
+    if (searchMode === 'ארצי') return;
+    closeAllDropdowns();
+    if (locationQuery.length > 0) {
+      handleLocationSearch(locationQuery);
+    } else {
+      setFilteredLocations(getInitialLocations());
+      setShowLocationDropdown(true);
     }
   };
 
@@ -149,6 +185,12 @@ export default function CategorySelectScreen({ navigation }) {
     Keyboard.dismiss();
   };
 
+  const getLocationPlaceholder = () => {
+    if (searchMode === 'ארצי') return 'כל הארץ';
+    if (locationQuery.length > 0) return '';
+    return searchMode === 'עירוני' ? 'הזן את שם העיר המבוקשת' : 'הזן את שם המחוז המבוקש';
+  };
+
   return (
     <TouchableWithoutFeedback onPress={closeAllDropdowns}>
       <View style={styles.container}>
@@ -168,30 +210,26 @@ export default function CategorySelectScreen({ navigation }) {
         ) : (
           <View style={styles.content}>
             
-            {/* Row 1: Category Search */}
+            {/* Row 1: Category Search (No label) */}
             <View style={[styles.inputGroup, { zIndex: 3 }]}>
-              <Text style={styles.label}>קטגוריה</Text>
               <View style={styles.searchBox}>
                 <Text style={styles.searchIcon}>🔍</Text>
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="חפש קטגוריה..."
+                  placeholder={categoryQuery.length > 0 ? "" : "חפש קטגוריה..."}
                   placeholderTextColor={COLORS.textSecondary}
                   value={categoryQuery}
                   onChangeText={handleCategorySearch}
-                  onFocus={() => {
-                    closeAllDropdowns();
-                    if (categoryQuery.length > 0) setShowCategoryDropdown(true);
-                  }}
+                  onFocus={handleCategoryFocus}
                   textAlign="right"
                 />
               </View>
 
               {/* Category Dropdown */}
               {showCategoryDropdown && (
-                <View style={styles.dropdown}>
+                <View style={[styles.dropdown, { top: 58 }]}>
                   {filteredCategories.length > 0 ? (
-                    filteredCategories.slice(0, 5).map((item) => (
+                    filteredCategories.map((item) => (
                       <TouchableOpacity
                         key={item.id}
                         style={styles.dropdownItem}
@@ -209,53 +247,12 @@ export default function CategorySelectScreen({ navigation }) {
               )}
             </View>
 
-            {/* Row 2: Search Mode & Location */}
+            {/* Row 2: Search Mode (Right) & Location (Left) */}
+            {/* By default in RTL, flexDirection: 'row' places first item on Right, second on Left */}
             <View style={[styles.row2, { zIndex: 2 }]}>
               
-              {/* Right Side: Location Input */}
-              <View style={[styles.inputGroup, { flex: 1, zIndex: 2, marginRight: SPACING.md }]}>
-                <Text style={styles.label}>איפה?</Text>
-                <View style={[styles.searchBox, searchMode === 'ארצי' && styles.disabledBox]}>
-                  <Text style={styles.searchIcon}>📍</Text>
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder={searchMode === 'ארצי' ? 'כל הארץ' : 'הזן מיקום...'}
-                    placeholderTextColor={COLORS.textSecondary}
-                    value={searchMode === 'ארצי' ? 'כל הארץ' : locationQuery}
-                    onChangeText={handleLocationSearch}
-                    onFocus={() => {
-                      closeAllDropdowns();
-                      if (locationQuery.length > 0 && searchMode !== 'ארצי') setShowLocationDropdown(true);
-                    }}
-                    textAlign="right"
-                    editable={searchMode !== 'ארצי'}
-                  />
-                </View>
-
-                {/* Location Dropdown */}
-                {showLocationDropdown && (
-                  <View style={styles.dropdown}>
-                    {filteredLocations.length > 0 ? (
-                      filteredLocations.slice(0, 5).map((item) => (
-                        <TouchableOpacity
-                          key={item.id}
-                          style={styles.dropdownItem}
-                          onPress={() => selectLocation(item)}
-                        >
-                          <Text style={styles.dropdownText}>{item.name}</Text>
-                        </TouchableOpacity>
-                      ))
-                    ) : (
-                      <View style={styles.dropdownItem}>
-                        <Text style={styles.errorText}>לא נמצאו מקומות מתאימים לחיפוש :(</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
-
-              {/* Left Side: Search Mode (Flex direction row-reverse makes this visually on the right) */}
-              <View style={[styles.inputGroup, { width: 110, zIndex: 3 }]}>
+              {/* Right Side: Search Mode (width: ~35%) */}
+              <View style={[styles.inputGroup, { flex: 0.35, zIndex: 3, marginLeft: SPACING.md }]}>
                 <Text style={styles.label}>איך לחפש?</Text>
                 <TouchableOpacity
                   style={styles.modeSelectorBox}
@@ -271,7 +268,7 @@ export default function CategorySelectScreen({ navigation }) {
 
                 {/* Mode Dropdown */}
                 {showModeDropdown && (
-                  <View style={[styles.dropdown, { width: '100%' }]}>
+                  <View style={[styles.dropdown, { top: 80, width: '100%' }]}>
                     {SEARCH_MODES.map((mode) => (
                       <TouchableOpacity
                         key={mode.id}
@@ -283,6 +280,45 @@ export default function CategorySelectScreen({ navigation }) {
                         </Text>
                       </TouchableOpacity>
                     ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Left Side: Location Input (width: ~65%) */}
+              <View style={[styles.inputGroup, { flex: 0.65, zIndex: 2, justifyContent: 'flex-end' }]}>
+                {/* Notice: No label here per request */}
+                <View style={[styles.searchBox, searchMode === 'ארצי' && styles.disabledBox]}>
+                  <Text style={styles.searchIcon}>📍</Text>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder={getLocationPlaceholder()}
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={searchMode === 'ארצי' ? 'כל הארץ' : locationQuery}
+                    onChangeText={handleLocationSearch}
+                    onFocus={handleLocationFocus}
+                    textAlign="right"
+                    editable={searchMode !== 'ארצי'}
+                  />
+                </View>
+
+                {/* Location Dropdown */}
+                {showLocationDropdown && (
+                  <View style={[styles.dropdown, { top: 58 }]}>
+                    {filteredLocations.length > 0 ? (
+                      filteredLocations.map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={styles.dropdownItem}
+                          onPress={() => selectLocation(item)}
+                        >
+                          <Text style={styles.dropdownText}>{item.name}</Text>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <View style={styles.dropdownItem}>
+                        <Text style={styles.errorText}>לא נמצאו מקומות מתאימים לחיפוש :(</Text>
+                      </View>
+                    )}
                   </View>
                 )}
               </View>
@@ -337,12 +373,12 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   content: {
-    paddingHorizontal: SPACING.xl, // not full-width
+    paddingHorizontal: SPACING.xl, // not edge-to-edge
     paddingTop: SPACING.xl,
   },
   row2: {
-    flexDirection: 'row-reverse',
-    alignItems: 'flex-start',
+    flexDirection: 'row', // RTL makes first item right, second left
+    alignItems: 'flex-end',
     marginTop: SPACING.xl,
     zIndex: 2,
   },
@@ -393,18 +429,17 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontFamily: FONTS.regular,
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.textPrimary,
     textAlign: 'right',
   },
   modeText: {
     fontFamily: FONTS.regular,
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.textPrimary,
   },
   dropdown: {
     position: 'absolute',
-    top: 80, // below label and input
     left: 0,
     right: 0,
     backgroundColor: COLORS.surfaceHover,
