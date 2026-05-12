@@ -12,9 +12,6 @@ import {
 import { getRankedDishes } from '../database/queries';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 
-const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'];
-const MEDAL_EMOJIS = ['🥇', '🥈', '🥉'];
-
 export default function RankingsScreen({ navigation, route }) {
   const { category, district, city } = route.params;
 
@@ -58,45 +55,57 @@ export default function RankingsScreen({ navigation, route }) {
 
   const renderDishItem = ({ item, index }) => {
     const rank = index + 1;
-    const isTopThree = rank <= 3;
-    const medallColor = isTopThree ? MEDAL_COLORS[rank - 1] : COLORS.border;
-    const medalEmoji = isTopThree ? MEDAL_EMOJIS[rank - 1] : null;
+
+    let rankBoxSize = 50;
+    let rankFontSize = 28;
+    if (rank === 1) {
+      rankBoxSize = 75;
+      rankFontSize = 46;
+    } else if (rank === 2) {
+      rankBoxSize = 65;
+      rankFontSize = 38;
+    } else if (rank === 3) {
+      rankBoxSize = 55;
+      rankFontSize = 32;
+    }
 
     return (
-      <Animated.View style={{ opacity: fadeAnim }}>
-        <View style={[styles.dishCard, isTopThree && styles.dishCardTop]}>
-          {/* Rank Badge */}
-          <View style={[styles.rankBadge, { borderColor: medallColor }]}>
-            {medalEmoji ? (
-              <Text style={styles.medalEmoji}>{medalEmoji}</Text>
-            ) : (
-              <Text style={[styles.rankNumber, { color: COLORS.textSecondary }]}>#{rank}</Text>
-            )}
+      <Animated.View style={[{ opacity: fadeAnim }, styles.itemWrapper]}>
+        
+        {/* Rank Number Outside the Card */}
+        <View style={[styles.rankContainer, { width: rankBoxSize, height: rankBoxSize }]}>
+          <Text style={[styles.rankText, { fontSize: rankFontSize }]}>{rank}</Text>
+        </View>
+
+        <View style={styles.squareCard}>
+          
+          {/* Right Column: Photo */}
+          <View style={styles.photoPlaceholder}>
+            <Text style={styles.photoPlaceholderText}>תמונה</Text>
           </View>
 
-          {/* Dish Info */}
-          <View style={styles.dishInfo}>
-            <Text style={styles.dishName}>{item.name}</Text>
+          {/* Center Column: Business Info */}
+          <View style={styles.centerCol}>
             <Text style={styles.businessName}>{item.business_name}</Text>
-            <Text style={styles.cityName}>{item.city_name}</Text>
+            <Text style={styles.addressText}>{item.address || 'כתובת לא הוזנה'}</Text>
+            <Text style={styles.reviewCount}>{item.review_count} ביקורות</Text>
           </View>
 
-          {/* Rating */}
-          <View style={styles.ratingBlock}>
-            <Text style={[styles.ratingNumber, isTopThree && { color: medallColor }]}>
-              {item.avg_rating.toFixed(1)}
-            </Text>
-            <Text style={[styles.ratingStars, { color: medallColor }]}>
-              {renderStars(item.avg_rating)}
-            </Text>
-            <Text style={styles.reviewCount}>{item.review_count} דירוגים</Text>
+          {/* Left Column: Rating & Action */}
+          <View style={styles.leftCol}>
+            <Text style={styles.ratingNumber}>★ {item.avg_rating.toFixed(1)}</Text>
+            <TouchableOpacity style={styles.addReviewBtn} onPress={() => {}}>
+              <Text style={styles.addReviewBtnText}>הוסף דירוג</Text>
+            </TouchableOpacity>
           </View>
+
         </View>
       </Animated.View>
     );
   };
 
   const locationLabel = city?.name || district?.name || 'כל הארץ';
+  const dynamicHeadline = `מחפשים את ה${category.name} הכי טוב ב${locationLabel}`;
 
   return (
     <View style={styles.container}>
@@ -117,10 +126,10 @@ export default function RankingsScreen({ navigation, route }) {
       {/* Title Banner */}
       {!loading && !error && (
         <Animated.View style={[styles.banner, { opacity: fadeAnim }]}>
-          <Text style={styles.bannerTitle}>🏆 לוח הדירוגים</Text>
+          <Text style={styles.bannerTitle}>{dynamicHeadline}</Text>
           {globalAvg > 0 && (
             <Text style={styles.bannerSubtitle}>
-              ממוצע גלובלי: {globalAvg.toFixed(2)} | שיטת Bayesian Average
+              ממוצע גלובלי: {globalAvg.toFixed(2)}
             </Text>
           )}
         </Animated.View>
@@ -150,7 +159,7 @@ export default function RankingsScreen({ navigation, route }) {
           renderItem={renderDishItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: SPACING.sm }} />}
+          ItemSeparatorComponent={() => <View style={{ height: SPACING.lg }} />}
         />
       )}
     </View>
@@ -201,25 +210,26 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   banner: {
-    marginHorizontal: SPACING.lg,
-    marginBottom: SPACING.md,
+    marginHorizontal: '20%', // Makes line smaller by ~30% effectively visually (20% on each side)
+    marginBottom: SPACING.xl,
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.xl,
     paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.accent,
     alignItems: 'center',
   },
   bannerTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 18,
+    fontSize: 16,
     color: COLORS.textPrimary,
     writingDirection: 'rtl',
+    textAlign: 'center',
   },
   bannerSubtitle: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textSecondary,
     marginTop: 4,
     writingDirection: 'rtl',
@@ -229,82 +239,114 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xxl,
   },
-  dishCard: {
+  itemWrapper: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    alignSelf: 'center',
+    width: '85%', // Less wide (was taking full width, now constrained)
+    justifyContent: 'center',
   },
-  dishCardTop: {
-    borderColor: COLORS.accent + '50',
-    backgroundColor: COLORS.surface,
-  },
-  rankBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
+  rankContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: SPACING.md,
-    flexShrink: 0,
+    backgroundColor: COLORS.accent, // Box!
+    borderRadius: 14,
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 8,
+    marginLeft: SPACING.xl, // Correctly pushes the rank box further right, away from the card
   },
-  medalEmoji: {
-    fontSize: 24,
-  },
-  rankNumber: {
+  rankText: {
     fontFamily: FONTS.bold,
-    fontSize: 15,
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
-  dishInfo: {
+  squareCard: {
     flex: 1,
-    alignItems: 'flex-end',
+    flexDirection: 'row-reverse',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md, // Restore internal padding
+    borderWidth: 1,
+    borderColor: COLORS.textPrimary,
+    minHeight: 200, 
+    alignItems: 'center', 
   },
-  dishName: {
-    fontFamily: FONTS.bold,
+  photoPlaceholder: {
+    width: 160, // Perfect square
+    height: 160, // A bit less than the 200 height bullet
+    backgroundColor: COLORS.bg,
+    borderWidth: 1,
+    borderColor: COLORS.textPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: RADIUS.sm,
+  },
+  photoPlaceholderText: {
+    fontFamily: FONTS.regular,
     fontSize: 16,
     color: COLORS.textPrimary,
-    writingDirection: 'rtl',
-    textAlign: 'right',
+  },
+  centerCol: {
+    flex: 1,
+    paddingHorizontal: SPACING.md,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   businessName: {
-    fontFamily: FONTS.semibold,
-    fontSize: 13,
-    color: COLORS.accent,
-    writingDirection: 'rtl',
-    marginTop: 2,
-  },
-  cityName: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    writingDirection: 'rtl',
-    marginTop: 1,
-  },
-  ratingBlock: {
-    alignItems: 'center',
-    marginRight: SPACING.md,
-    flexShrink: 0,
-  },
-  ratingNumber: {
     fontFamily: FONTS.bold,
-    fontSize: 22,
+    fontSize: 40, // True headline size
     color: COLORS.textPrimary,
+    textAlign: 'center',
+    marginTop: -8, // Push slightly up without breaking layout
   },
-  ratingStars: {
-    fontSize: 12,
-    color: '#FFD700',
-    letterSpacing: 1,
+  addressText: {
+    fontFamily: FONTS.regular,
+    fontSize: 18, 
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    marginTop: 36, // Push significantly lower!
   },
   reviewCount: {
     fontFamily: FONTS.regular,
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-    writingDirection: 'rtl',
+    fontSize: 16, 
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    marginTop: 8, // Directly under address
+  },
+  leftCol: {
+    alignItems: 'center',
+    justifyContent: 'center', // Keep them close to the center
+    width: 110, // Wider column for a bigger button
+  },
+  ratingNumber: {
+    fontFamily: FONTS.bold,
+    fontSize: 34, 
+    color: '#FFD700', // Gold color for rating
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1,
+    marginBottom: SPACING.xl, // Space between rating and button
+  },
+  addReviewBtn: {
+    borderWidth: 1,
+    borderColor: COLORS.textPrimary,
+    paddingVertical: 12, // Bigger button
+    paddingHorizontal: 8, 
+    borderRadius: 6,
+    backgroundColor: COLORS.surfaceHover,
+    width: '100%', 
+  },
+  addReviewBtnText: {
+    fontFamily: FONTS.semibold,
+    fontSize: 16, // Bigger text
+    color: COLORS.textPrimary,
+    textAlign: 'center',
   },
   center: {
     flex: 1,

@@ -66,6 +66,8 @@ export const getRankedDishes = async ({ categoryId, districtId, cityId }) => {
   }
 
   const { data: businesses, error: bizError } = await businessQuery;
+  console.log('getRankedDishes - matching businesses:', businesses);
+  
   if (bizError) throw new Error(`getRankedDishes/businesses: ${bizError.message}`);
 
   const businessIds = businesses.map((b) => b.id);
@@ -93,8 +95,9 @@ export const getRankedDishes = async ({ categoryId, districtId, cityId }) => {
       )
     `)
     .eq('category_id', categoryId)
-    .in('business_id', businessIds)
-    .gt('review_count', 0);
+    .in('business_id', businessIds);
+
+  console.log('getRankedDishes - rawDishes fetched:', rawDishes, 'Error:', dishError);
 
   if (dishError) throw new Error(`getRankedDishes/dishes: ${dishError.message}`);
 
