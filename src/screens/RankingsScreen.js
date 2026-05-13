@@ -85,18 +85,19 @@ export default function RankingsScreen({ navigation, route }) {
     }
 
     return (
-      <Animated.View style={[{ opacity: fadeAnim }, styles.itemWrapper, { width: isMobile ? '95%' : '85%', transform: [{ translateX: isMobile ? 0 : 65 * scale }] }]}>
+      <Animated.View style={[{ opacity: fadeAnim }, styles.itemWrapper, { width: isMobile ? '98%' : '85%', transform: [{ translateX: isMobile ? 0 : 65 * scale }] }]}>
         
         {/* Rank Number Outside the Card */}
-        <View style={[styles.rankOuterContainer, { width: isMobile ? 50 : 80 * scale, marginLeft: isMobile ? SPACING.sm : SPACING.lg * scale }]}>
+        <View style={[styles.rankOuterContainer, { width: isMobile ? 36 : 80 * scale, marginLeft: isMobile ? 4 : SPACING.lg * scale }]}>
           <View style={[styles.rankContainer, { width: rankBoxSize, height: rankBoxSize }]}>
             <Text style={[styles.rankText, { fontSize: rankFontSize }]}>{rank}</Text>
           </View>
         </View>
 
         <View style={[styles.squareCard, { 
+          flex: isMobile ? 0 : 1, // Remove flex: 1 on mobile so height: auto works properly
           height: isMobile ? 'auto' : 200 * scale, 
-          minHeight: isMobile ? 140 : 200 * scale,
+          minHeight: isMobile ? 160 : 200 * scale,
           padding: isMobile ? SPACING.lg : SPACING.md * scale 
         }]}>
           
@@ -151,7 +152,7 @@ export default function RankingsScreen({ navigation, route }) {
 
             {/* Mobile-Only: Rating & Action injected under the info! */}
             {isMobile && (
-              <View style={styles.mobileActionRow}>
+              <View style={[styles.mobileActionRow, { marginTop: 16 }]}>
                 <View style={{ flexDirection: 'row-reverse', alignItems: 'center' }}>
                   <Text style={styles.mobileRatingNumber}>★ {item.avg_rating.toFixed(1)}</Text>
                   <Text style={styles.mobileReviewCount}>({item.review_count} דירוגים)</Text>
@@ -223,7 +224,7 @@ export default function RankingsScreen({ navigation, route }) {
       ) : (
         <ScrollView 
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 100, ...styles.listContent }}
+          contentContainerStyle={[{ paddingBottom: 100, ...styles.listContent }, isMobile && { paddingHorizontal: 4 }]}
           showsVerticalScrollIndicator={true} // Show scrollbar
         >
           {dishes.map((item, index) => (
