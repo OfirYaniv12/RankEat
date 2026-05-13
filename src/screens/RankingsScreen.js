@@ -68,17 +68,20 @@ export default function RankingsScreen({ navigation, route }) {
   const renderDishItem = ({ item, index }) => {
     const rank = index + 1;
 
-    let rankBoxSize = 50 * scale;
-    let rankFontSize = 28 * scale;
+    // Mobile specific sizing logic to ensure comfort and readability
+    const mobileRankScale = isMobile ? 0.8 : scale;
+    
+    let rankBoxSize = 50 * mobileRankScale;
+    let rankFontSize = 28 * mobileRankScale;
     if (rank === 1) {
-      rankBoxSize = 75 * scale;
-      rankFontSize = 46 * scale;
+      rankBoxSize = 75 * mobileRankScale;
+      rankFontSize = 46 * mobileRankScale;
     } else if (rank === 2) {
-      rankBoxSize = 65 * scale;
-      rankFontSize = 38 * scale;
+      rankBoxSize = 65 * mobileRankScale;
+      rankFontSize = 38 * mobileRankScale;
     } else if (rank === 3) {
-      rankBoxSize = 55 * scale;
-      rankFontSize = 32 * scale;
+      rankBoxSize = 55 * mobileRankScale;
+      rankFontSize = 32 * mobileRankScale;
     }
 
     return (
@@ -91,45 +94,68 @@ export default function RankingsScreen({ navigation, route }) {
           </View>
         </View>
 
-        <View style={[styles.squareCard, { height: 200 * scale, padding: SPACING.md * scale }]}>
+        <View style={[styles.squareCard, { 
+          height: isMobile ? 'auto' : 200 * scale, 
+          minHeight: isMobile ? 140 : 200 * scale,
+          padding: isMobile ? SPACING.lg : SPACING.md * scale 
+        }]}>
           
           {/* Right Column: Photo */}
-          <View style={[styles.photoPlaceholder, { width: 160 * scale, height: 160 * scale }]}>
-            <Text style={[styles.photoPlaceholderText, { fontSize: 16 * scale }]}>תמונה</Text>
+          <View style={[styles.photoPlaceholder, { 
+            width: isMobile ? 90 : 160 * scale, 
+            height: isMobile ? 90 : 160 * scale 
+          }]}>
+            <Text style={[styles.photoPlaceholderText, { fontSize: isMobile ? 14 : 16 * scale }]}>תמונה</Text>
           </View>
 
           {/* Center Column: Business Info */}
-          <View style={styles.centerCol}>
+          <View style={[styles.centerCol, isMobile && { alignItems: 'flex-end', justifyContent: 'center' }]}>
             {item.city_name && item.city_name !== '—' ? (
-              <View style={styles.headlineRow}>
+              <View style={[styles.headlineRow, isMobile && { justifyContent: 'flex-end' }]}>
                 <View style={styles.headlineHalf}>
-                  <Text style={[styles.businessName, { textAlign: 'right', fontSize: 40 * scale, marginTop: -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
+                  <Text style={[styles.businessName, { textAlign: 'right', fontSize: isMobile ? 22 : 40 * scale, marginTop: isMobile ? 0 : -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
                     {item.city_name}
                   </Text>
                 </View>
-                <Text style={[styles.businessName, { marginHorizontal: 6 * scale, fontSize: 40 * scale, marginTop: -8 * scale }]}>|</Text>
-                <View style={styles.headlineHalf}>
-                  <Text style={[styles.businessName, { textAlign: 'left', fontSize: 40 * scale, marginTop: -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
+                <Text style={[styles.businessName, { marginHorizontal: isMobile ? 4 : 6 * scale, fontSize: isMobile ? 22 : 40 * scale, marginTop: isMobile ? 0 : -8 * scale }]}>|</Text>
+                <View style={[styles.headlineHalf, isMobile && { flex: 0 }]}>
+                  <Text style={[styles.businessName, { textAlign: isMobile ? 'right' : 'left', fontSize: isMobile ? 22 : 40 * scale, marginTop: isMobile ? 0 : -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
                     {item.business_name}
                   </Text>
                 </View>
               </View>
             ) : (
-              <Text style={[styles.businessName, { fontSize: 40 * scale, marginTop: -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
+              <Text style={[styles.businessName, { fontSize: isMobile ? 24 : 40 * scale, marginTop: isMobile ? 0 : -8 * scale, textAlign: 'right' }]} numberOfLines={2} adjustsFontSizeToFit>
                 {item.business_name}
               </Text>
             )}
-            <Text style={[styles.addressText, { fontSize: 18 * scale, marginTop: 36 * scale }]} numberOfLines={1}>{item.address || 'כתובת לא הוזנה'}</Text>
-            <Text style={[styles.reviewCount, { fontSize: 16 * scale, marginTop: 8 * scale }]}>{item.review_count} ביקורות</Text>
+            
+            <Text style={[styles.addressText, { fontSize: isMobile ? 14 : 18 * scale, marginTop: isMobile ? 6 : 36 * scale, textAlign: 'right' }]} numberOfLines={1}>
+              {item.address || 'כתובת לא הוזנה'}
+            </Text>
+            
+            {!isMobile && (
+              <Text style={[styles.reviewCount, { fontSize: 16 * scale, marginTop: 8 * scale }]}>{item.review_count} ביקורות</Text>
+            )}
+
+            {/* Mobile-Only: Rating & Action injected under the info! */}
+            {isMobile && (
+              <View style={styles.mobileActionRow}>
+                <Text style={styles.mobileRatingNumber}>★ {item.avg_rating.toFixed(1)}</Text>
+                <Text style={styles.mobileReviewCount}>({item.review_count} דירוגים)</Text>
+              </View>
+            )}
           </View>
 
-          {/* Left Column: Rating & Action */}
-          <View style={[styles.leftCol, { width: 110 * scale }]}>
-            <Text style={[styles.ratingNumber, { fontSize: 34 * scale, marginBottom: SPACING.xl * scale }]}>★ {item.avg_rating.toFixed(1)}</Text>
-            <TouchableOpacity style={[styles.addReviewBtn, { paddingVertical: 12 * scale }]} onPress={() => {}}>
-              <Text style={[styles.addReviewBtnText, { fontSize: 16 * scale }]}>הוסף דירוג</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Left Column: Rating & Action (Desktop Only) */}
+          {!isMobile && (
+            <View style={[styles.leftCol, { width: 110 * scale }]}>
+              <Text style={[styles.ratingNumber, { fontSize: 34 * scale, marginBottom: SPACING.xl * scale }]}>★ {item.avg_rating.toFixed(1)}</Text>
+              <TouchableOpacity style={[styles.addReviewBtn, { paddingVertical: 12 * scale }]} onPress={() => {}}>
+                <Text style={[styles.addReviewBtnText, { fontSize: 16 * scale }]}>הוסף דירוג</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
         </View>
       </Animated.View>
@@ -149,10 +175,10 @@ export default function RankingsScreen({ navigation, route }) {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <View style={[styles.headlineBanner, { width: isMobile ? '95%' : '80%', transform: [{ translateX: 13 * scale }] }]}>
-            <Text style={[styles.mainPageHeadline, { fontSize: 20 * scale }]}>{dynamicHeadline}</Text>
+          <View style={[styles.headlineBanner, { width: isMobile ? '95%' : '80%', transform: [{ translateX: isMobile ? 5 : 13 * scale }] }]}>
+            <Text style={[styles.mainPageHeadline, { fontSize: isMobile ? 16 : 20 * scale }]}>{dynamicHeadline}</Text>
             {globalAvg > 0 && !loading && !error && (
-              <Text style={[styles.mainPageSubtitle, { fontSize: 14 * scale }]}>
+              <Text style={[styles.mainPageSubtitle, { fontSize: isMobile ? 12 : 14 * scale }]}>
                 ממוצע גלובלי: {globalAvg.toFixed(2)}
               </Text>
             )}
@@ -421,5 +447,24 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     writingDirection: 'rtl',
     textAlign: 'center',
+  },
+  mobileActionRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+  },
+  mobileRatingNumber: {
+    fontFamily: FONTS.bold,
+    fontSize: 20, 
+    color: '#FFD700',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1,
+    marginLeft: SPACING.xs,
+  },
+  mobileReviewCount: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: COLORS.textSecondary,
   },
 });
