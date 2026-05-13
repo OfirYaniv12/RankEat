@@ -19,6 +19,12 @@ import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 
 export default function RankingsScreen({ navigation, route }) {
   const { category, district, city } = route.params;
+  const { width } = useWindowDimensions();
+  
+  // Responsive proportional scale: Desktop baseline is 1024px.
+  // Scale down smoothly for smaller screens but clamp at 0.55 so mobile stays readable.
+  const scale = width > 1024 ? 1 : Math.max(width / 1024, 0.55);
+  const isMobile = width < 768;
 
   const [dishes, setDishes] = useState([]);
   const [globalAvg, setGlobalAvg] = useState(0);
@@ -61,34 +67,34 @@ export default function RankingsScreen({ navigation, route }) {
   const renderDishItem = ({ item, index }) => {
     const rank = index + 1;
 
-    let rankBoxSize = 50;
-    let rankFontSize = 28;
+    let rankBoxSize = 50 * scale;
+    let rankFontSize = 28 * scale;
     if (rank === 1) {
-      rankBoxSize = 75;
-      rankFontSize = 46;
+      rankBoxSize = 75 * scale;
+      rankFontSize = 46 * scale;
     } else if (rank === 2) {
-      rankBoxSize = 65;
-      rankFontSize = 38;
+      rankBoxSize = 65 * scale;
+      rankFontSize = 38 * scale;
     } else if (rank === 3) {
-      rankBoxSize = 55;
-      rankFontSize = 32;
+      rankBoxSize = 55 * scale;
+      rankFontSize = 32 * scale;
     }
 
     return (
-      <Animated.View style={[{ opacity: fadeAnim }, styles.itemWrapper]}>
+      <Animated.View style={[{ opacity: fadeAnim }, styles.itemWrapper, { width: isMobile ? '95%' : '85%', transform: [{ translateX: 65 * scale }] }]}>
         
         {/* Rank Number Outside the Card */}
-        <View style={styles.rankOuterContainer}>
+        <View style={[styles.rankOuterContainer, { width: 80 * scale, marginLeft: SPACING.lg * scale }]}>
           <View style={[styles.rankContainer, { width: rankBoxSize, height: rankBoxSize }]}>
             <Text style={[styles.rankText, { fontSize: rankFontSize }]}>{rank}</Text>
           </View>
         </View>
 
-        <View style={styles.squareCard}>
+        <View style={[styles.squareCard, { height: 200 * scale, padding: SPACING.md * scale }]}>
           
           {/* Right Column: Photo */}
-          <View style={styles.photoPlaceholder}>
-            <Text style={styles.photoPlaceholderText}>תמונה</Text>
+          <View style={[styles.photoPlaceholder, { width: 160 * scale, height: 160 * scale }]}>
+            <Text style={[styles.photoPlaceholderText, { fontSize: 16 * scale }]}>תמונה</Text>
           </View>
 
           {/* Center Column: Business Info */}
@@ -96,31 +102,31 @@ export default function RankingsScreen({ navigation, route }) {
             {item.city_name && item.city_name !== '—' ? (
               <View style={styles.headlineRow}>
                 <View style={styles.headlineHalf}>
-                  <Text style={[styles.businessName, { textAlign: 'right' }]} numberOfLines={2} adjustsFontSizeToFit>
+                  <Text style={[styles.businessName, { textAlign: 'right', fontSize: 40 * scale, marginTop: -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
                     {item.city_name}
                   </Text>
                 </View>
-                <Text style={[styles.businessName, { marginHorizontal: 6 }]}>|</Text>
+                <Text style={[styles.businessName, { marginHorizontal: 6 * scale, fontSize: 40 * scale, marginTop: -8 * scale }]}>|</Text>
                 <View style={styles.headlineHalf}>
-                  <Text style={[styles.businessName, { textAlign: 'left' }]} numberOfLines={2} adjustsFontSizeToFit>
+                  <Text style={[styles.businessName, { textAlign: 'left', fontSize: 40 * scale, marginTop: -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
                     {item.business_name}
                   </Text>
                 </View>
               </View>
             ) : (
-              <Text style={styles.businessName} numberOfLines={2} adjustsFontSizeToFit>
+              <Text style={[styles.businessName, { fontSize: 40 * scale, marginTop: -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
                 {item.business_name}
               </Text>
             )}
-            <Text style={styles.addressText} numberOfLines={1}>{item.address || 'כתובת לא הוזנה'}</Text>
-            <Text style={styles.reviewCount}>{item.review_count} ביקורות</Text>
+            <Text style={[styles.addressText, { fontSize: 18 * scale, marginTop: 36 * scale }]} numberOfLines={1}>{item.address || 'כתובת לא הוזנה'}</Text>
+            <Text style={[styles.reviewCount, { fontSize: 16 * scale, marginTop: 8 * scale }]}>{item.review_count} ביקורות</Text>
           </View>
 
           {/* Left Column: Rating & Action */}
-          <View style={styles.leftCol}>
-            <Text style={styles.ratingNumber}>★ {item.avg_rating.toFixed(1)}</Text>
-            <TouchableOpacity style={styles.addReviewBtn} onPress={() => {}}>
-              <Text style={styles.addReviewBtnText}>הוסף דירוג</Text>
+          <View style={[styles.leftCol, { width: 110 * scale }]}>
+            <Text style={[styles.ratingNumber, { fontSize: 34 * scale, marginBottom: SPACING.xl * scale }]}>★ {item.avg_rating.toFixed(1)}</Text>
+            <TouchableOpacity style={[styles.addReviewBtn, { paddingVertical: 12 * scale }]} onPress={() => {}}>
+              <Text style={[styles.addReviewBtnText, { fontSize: 16 * scale }]}>הוסף דירוג</Text>
             </TouchableOpacity>
           </View>
 
@@ -142,10 +148,10 @@ export default function RankingsScreen({ navigation, route }) {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <View style={styles.headlineBanner}>
-            <Text style={styles.mainPageHeadline}>{dynamicHeadline}</Text>
+          <View style={[styles.headlineBanner, { width: isMobile ? '95%' : '80%', transform: [{ translateX: 13 * scale }] }]}>
+            <Text style={[styles.mainPageHeadline, { fontSize: 20 * scale }]}>{dynamicHeadline}</Text>
             {globalAvg > 0 && !loading && !error && (
-              <Text style={styles.mainPageSubtitle}>
+              <Text style={[styles.mainPageSubtitle, { fontSize: 14 * scale }]}>
                 ממוצע גלובלי: {globalAvg.toFixed(2)}
               </Text>
             )}

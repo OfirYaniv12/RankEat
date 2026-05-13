@@ -10,6 +10,7 @@ import {
   I18nManager,
   Keyboard,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { getCategories, getDistricts, getCities } from '../database/queries';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
@@ -43,6 +44,10 @@ export default function CategorySelectScreen({ navigation }) {
   const [filteredLocations, setFilteredLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+
+  // Responsiveness
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
 
   useEffect(() => {
     loadData();
@@ -217,7 +222,7 @@ export default function CategorySelectScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
           {/* Row 1: Category Search */}
-          <View style={[styles.inputRow, { zIndex: 3 }]}>
+          <View style={[styles.inputRow, isMobile && { width: '90%' }, { zIndex: 3 }]}>
             <View style={styles.inputGroup}>
               <View style={styles.searchBox}>
                 <Text style={styles.searchIcon}>🔍</Text>
@@ -259,12 +264,20 @@ export default function CategorySelectScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Row 2: Search Mode (Right) & Location (Left) */}
-          {/* Using flex-direction: row-reverse with explicit item placement guarantees correct RTL. */}
-          <View style={[styles.inputRow, styles.row2, { zIndex: 2 }]}>
+          {/* Row 2: Search Mode & Location */}
+          {/* On mobile, stack vertically. On desktop, keep 30/70 row. */}
+          <View style={[
+            styles.inputRow, 
+            isMobile ? styles.row2Mobile : styles.row2, 
+            isMobile && { width: '90%' },
+            { zIndex: 2 }
+          ]}>
             
-            {/* Right Side: Search Mode (30%) */}
-            <View style={[styles.inputGroup, { flex: 0.3, zIndex: 3, marginLeft: SPACING.md }]}>
+            {/* Search Mode */}
+            <View style={[
+              styles.inputGroup, 
+              isMobile ? { width: '100%', marginBottom: SPACING.lg, zIndex: 3 } : { flex: 0.3, zIndex: 3, marginLeft: SPACING.md }
+            ]}>
               <Text style={styles.label}>איך לחפש?</Text>
               <TouchableOpacity
                 style={styles.modeSelectorBox}
@@ -296,8 +309,11 @@ export default function CategorySelectScreen({ navigation }) {
               )}
             </View>
 
-            {/* Left Side: Location Input (70%) */}
-            <View style={[styles.inputGroup, { flex: 0.7, zIndex: 2, justifyContent: 'flex-end' }]}>
+            {/* Location Input */}
+            <View style={[
+              styles.inputGroup, 
+              isMobile ? { width: '100%', zIndex: 2 } : { flex: 0.7, zIndex: 2, justifyContent: 'flex-end' }
+            ]}>
               <View style={[styles.searchBox, searchMode === 'ארצי' && styles.disabledBox]}>
                 <Text style={styles.searchIcon}>📍</Text>
                 <TextInput
@@ -341,7 +357,7 @@ export default function CategorySelectScreen({ navigation }) {
 
           {/* CTA Button */}
           <View style={styles.btnContainer}>
-            <TouchableOpacity style={styles.submitBtn} onPress={handleSearchSubmit}>
+            <TouchableOpacity style={[styles.submitBtn, isMobile && { width: '70%' }]} onPress={handleSearchSubmit}>
               <Text style={styles.submitBtnText}>חפש עכשיו</Text>
             </TouchableOpacity>
           </View>
@@ -396,6 +412,11 @@ const styles = StyleSheet.create({
   row2: {
     flexDirection: 'row-reverse', // Forces first item (Search Mode) to the RIGHT
     alignItems: 'flex-end',
+    marginTop: SPACING.xl,
+  },
+  row2Mobile: {
+    flexDirection: 'column', // Stack vertically on mobile
+    alignItems: 'center',
     marginTop: SPACING.xl,
   },
   inputGroup: {
