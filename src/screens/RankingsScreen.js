@@ -69,7 +69,7 @@ export default function RankingsScreen({ navigation, route }) {
     const rank = index + 1;
 
     // Mobile specific sizing logic to ensure comfort and readability
-    const mobileRankScale = isMobile ? 0.8 : scale;
+    const mobileRankScale = isMobile ? 0.6 : scale;
     
     let rankBoxSize = 50 * mobileRankScale;
     let rankFontSize = 28 * mobileRankScale;
@@ -152,8 +152,13 @@ export default function RankingsScreen({ navigation, route }) {
             {/* Mobile-Only: Rating & Action injected under the info! */}
             {isMobile && (
               <View style={styles.mobileActionRow}>
-                <Text style={styles.mobileRatingNumber}>★ {item.avg_rating.toFixed(1)}</Text>
-                <Text style={styles.mobileReviewCount}>({item.review_count} דירוגים)</Text>
+                <View style={{ flexDirection: 'row-reverse', alignItems: 'center' }}>
+                  <Text style={styles.mobileRatingNumber}>★ {item.avg_rating.toFixed(1)}</Text>
+                  <Text style={styles.mobileReviewCount}>({item.review_count} דירוגים)</Text>
+                </View>
+                <TouchableOpacity style={styles.mobileAddReviewBtn} onPress={() => {}}>
+                  <Text style={styles.mobileAddReviewBtnText}>הוסף דירוג</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -462,7 +467,9 @@ const styles = StyleSheet.create({
   mobileActionRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    marginTop: SPACING.sm,
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: SPACING.md,
   },
   mobileRatingNumber: {
     fontFamily: FONTS.bold,
@@ -477,5 +484,19 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontSize: 13,
     color: COLORS.textSecondary,
+  },
+  mobileAddReviewBtn: {
+    borderWidth: 1,
+    borderColor: COLORS.textPrimary,
+    paddingVertical: 6,
+    paddingHorizontal: 12, 
+    borderRadius: 6,
+    backgroundColor: COLORS.surfaceHover,
+  },
+  mobileAddReviewBtnText: {
+    fontFamily: FONTS.semibold,
+    fontSize: 13,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
   },
 });
