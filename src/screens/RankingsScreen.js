@@ -11,6 +11,7 @@ import {
   StatusBar,
   Platform,
   Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
