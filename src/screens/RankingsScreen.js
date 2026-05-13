@@ -12,10 +12,13 @@ import {
   Platform,
   Dimensions,
   useWindowDimensions,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-import { getRankedDishes } from '../database/queries';
+import { getRankedDishes, addReview } from '../database/queries';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 
 export default function RankingsScreen({ navigation, route }) {
@@ -31,6 +34,13 @@ export default function RankingsScreen({ navigation, route }) {
   const [globalAvg, setGlobalAvg] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Modal State
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedDish, setSelectedDish] = useState(null);
+  const [ratingInput, setRatingInput] = useState('');
+  const [commentInput, setCommentInput] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -53,6 +63,53 @@ export default function RankingsScreen({ navigation, route }) {
       setError('שגיאה בטעינת הנתונים');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenModal = (dish) => {
+    setSelectedDish(dish);
+    setRatingInput('');
+    setCommentInput('');
+    setModalVisible(true);
+  };
+
+  const handleRatingChange = (text) => {
+    let formatted = text.replace(/[^0-9.]/g, '');
+    const parts = formatted.split('.');
+    if (parts.length > 2) {
+      formatted = parts[0] + '.' + parts.slice(1).join('');
+    }
+    setRatingInput(formatted);
+  };
+
+  const handleSaveRating = async () => {
+    const val = parseFloat(ratingInput);
+    if (isNaN(val) || val < 1.0 || val > 10.0) {
+      if (Platform.OS === 'web') {
+        window.alert('אנא הזן דירוג בין 1.0 ל-10.0');
+      } else {
+        Alert.alert('שגיאה', 'אנא הזן דירוג בין 1.0 ל-10.0');
+      }
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await addReview({ dishId: selectedDish.id, rating: val, comment: commentInput });
+      setModalVisible(false);
+      setRatingInput('');
+      setCommentInput('');
+      setLoading(true);
+      await loadRankings();
+    } catch (e) {
+      console.error(e);
+      if (Platform.OS === 'web') {
+        window.alert('שגיאה: לא ניתן לשמור את הדירוג כעת');
+      } else {
+        Alert.alert('שגיאה', 'לא ניתן לשמור את הדירוג כעת');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -157,7 +214,7 @@ export default function RankingsScreen({ navigation, route }) {
                   <Text style={styles.mobileRatingNumber}>★ {item.avg_rating.toFixed(1)}</Text>
                   <Text style={styles.mobileReviewCount}>({item.review_count} דירוגים)</Text>
                 </View>
-                <TouchableOpacity style={styles.mobileAddReviewBtn} onPress={() => {}}>
+                <TouchableOpacity style={styles.mobileAddReviewBtn} onPress={() => handleOpenModal(item)}>
                   <Text style={styles.mobileAddReviewBtnText}>הוסף דירוג</Text>
                 </TouchableOpacity>
               </View>
@@ -168,7 +225,7 @@ export default function RankingsScreen({ navigation, route }) {
           {!isMobile && (
             <View style={[styles.leftCol, { width: 110 * scale }]}>
               <Text style={[styles.ratingNumber, { fontSize: 34 * scale, marginBottom: SPACING.xl * scale }]}>★ {item.avg_rating.toFixed(1)}</Text>
-              <TouchableOpacity style={[styles.addReviewBtn, { paddingVertical: 12 * scale }]} onPress={() => {}}>
+              <TouchableOpacity style={[styles.addReviewBtn, { paddingVertical: 12 * scale }]} onPress={() => handleOpenModal(item)}>
                 <Text style={[styles.addReviewBtnText, { fontSize: 16 * scale }]}>הוסף דירוג</Text>
               </TouchableOpacity>
             </View>
@@ -235,6 +292,58 @@ export default function RankingsScreen({ navigation, route }) {
           ))}
         </ScrollView>
       )}
+
+      {/* Review Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isMobile && styles.modalContentMobile]}>
+            {/* Close Button */}
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setModalVisible(false)}>
+              <Text style={styles.closeBtnText}>✕</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.modalTitle}>נו איך היה?</Text>
+            
+            <TextInput
+              style={styles.ratingInput}
+              keyboardType="decimal-pad"
+              maxLength={4}
+              placeholder="8.4"
+              placeholderTextColor={COLORS.textSecondary}
+              value={ratingInput}
+              onChangeText={handleRatingChange}
+              editable={!isSubmitting}
+            />
+
+            <TextInput
+              style={styles.commentInput}
+              multiline={true}
+              numberOfLines={4}
+              placeholder="ספרו לנו קצת על המנה (אופציונלי)"
+              placeholderTextColor={COLORS.textSecondary}
+              value={commentInput}
+              onChangeText={setCommentInput}
+              editable={!isSubmitting}
+              textAlignVertical="top"
+            />
+            
+            <TouchableOpacity 
+              style={[styles.saveBtn, (!ratingInput || isSubmitting) && { opacity: 0.5 }]} 
+              onPress={handleSaveRating}
+              disabled={!ratingInput || isSubmitting}
+            >
+              <Text style={styles.saveBtnText}>{isSubmitting ? 'שומר...' : 'שמור דירוג'}</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.modalNote}>רק מזכירים, הדירוג הוא למנה עצמה ולא לעסק 😉</Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -499,5 +608,95 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textPrimary,
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalContent: {
+    width: 400,
+    backgroundColor: COLORS.bg,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+  },
+  modalContentMobile: {
+    width: '90%',
+    padding: SPACING.lg,
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: SPACING.md,
+    left: SPACING.md,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.pill,
+  },
+  closeBtnText: {
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.bold,
+    fontSize: 16,
+  },
+  modalTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 24,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.lg,
+    marginTop: SPACING.md,
+  },
+  ratingInput: {
+    backgroundColor: COLORS.surface,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.bold,
+    fontSize: 48,
+    textAlign: 'center',
+    width: 140,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.md,
+  },
+  commentInput: {
+    backgroundColor: COLORS.surface,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.regular,
+    fontSize: 16,
+    width: '100%',
+    height: 100,
+    padding: SPACING.md,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.xl,
+    writingDirection: 'rtl',
+    textAlign: 'right',
+  },
+  saveBtn: {
+    backgroundColor: COLORS.accent,
+    width: '100%',
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  saveBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 18,
+    color: '#FFF',
+  },
+  modalNote: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.md,
   },
 });

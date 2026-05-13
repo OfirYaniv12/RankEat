@@ -162,3 +162,75 @@ export const addDish = async ({ name, categoryId, businessId, avgRating, reviewC
   if (error) throw new Error(`addDish: ${error.message}`);
   return data.id;
 };
+
+// ─── REVIEWS & PROFILES (MOCK USER) ───────────────────────────────────────────
+export const getOrCreateMockUser = async () => {
+  // Try to find the mock user
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('name', 'Ofir')
+    .limit(1)
+    .single();
+
+  if (data && data.id) {
+    return data.id;
+  }
+
+  // Create if not exists (assuming id is auto-generated UUID or serial)
+  const { data: newProfile, error: insertError } = await supabase
+    .from('profiles')
+    .insert({ name: 'Ofir', city: 'Tel Aviv' })
+    .select('id')
+    .single();
+
+  if (insertError) throw new Error(`getOrCreateMockUser: ${insertError.message}`);
+  return newProfile.id;
+};
+
+export const addReview = async ({ dishId, rating, comment }) => {
+  const mockUserId = '00000000-0000-0000-0000-000000000000';
+
+  // 1. Insert review
+  const { error: reviewError } = await supabase
+    .from('reviews')
+    .insert({
+      dish_id: dishId,
+      user_id: mockUserId, // Updated to user_id as requested
+      rating: parseFloat(rating),
+      comment: comment || '',
+    });
+
+  if (reviewError) {
+    console.error('Supabase Insert Review Error:', reviewError);
+    throw new Error(`addReview/insert: ${reviewError.message}`);
+  }
+
+  // 2. Fetch all reviews for this dish to recalculate avg
+  const { data: allReviews, error: fetchError } = await supabase
+    .from('reviews')
+    .select('rating')
+    .eq('dish_id', dishId);
+
+  if (fetchError) {
+    console.error('Supabase Fetch Reviews Error:', fetchError);
+    throw new Error(`addReview/fetch: ${fetchError.message}`);
+  }
+
+  const count = allReviews.length;
+  const sum = allReviews.reduce((acc, r) => acc + r.rating, 0);
+  const avg = count > 0 ? sum / count : parseFloat(rating);
+
+  // 3. Update dish avg_rating and review_count
+  const { error: updateError } = await supabase
+    .from('dishes')
+    .update({ avg_rating: avg, review_count: count })
+    .eq('id', dishId);
+
+  if (updateError) {
+    console.error('Supabase Update Dish Error:', updateError);
+    throw new Error(`addReview/update: ${updateError.message}`);
+  }
+
+  return true;
+};
