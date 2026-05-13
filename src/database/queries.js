@@ -234,3 +234,22 @@ export const addReview = async ({ dishId, rating, comment }) => {
 
   return true;
 };
+
+// ─── STATISTICS ──────────────────────────────────────────────────────────────
+export const getHomeStats = async () => {
+  const [citiesRes, businessesRes, reviewsRes] = await Promise.all([
+    supabase.from('cities').select('*', { count: 'estimated', head: true }),
+    supabase.from('businesses').select('*', { count: 'estimated', head: true }),
+    supabase.from('reviews').select('*', { count: 'estimated', head: true }),
+  ]);
+
+  if (citiesRes.error) throw new Error(`getHomeStats/cities: ${citiesRes.error.message}`);
+  if (businessesRes.error) throw new Error(`getHomeStats/businesses: ${businessesRes.error.message}`);
+  if (reviewsRes.error) throw new Error(`getHomeStats/reviews: ${reviewsRes.error.message}`);
+
+  return {
+    cities: citiesRes.count || 0,
+    restaurants: businessesRes.count || 0,
+    reviews: reviewsRes.count || 0,
+  };
+};
