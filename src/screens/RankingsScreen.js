@@ -85,10 +85,10 @@ export default function RankingsScreen({ navigation, route }) {
     }
 
     return (
-      <Animated.View style={[{ opacity: fadeAnim }, styles.itemWrapper, { width: isMobile ? '95%' : '85%', transform: [{ translateX: 65 * scale }] }]}>
+      <Animated.View style={[{ opacity: fadeAnim }, styles.itemWrapper, { width: isMobile ? '95%' : '85%', transform: [{ translateX: isMobile ? 0 : 65 * scale }] }]}>
         
         {/* Rank Number Outside the Card */}
-        <View style={[styles.rankOuterContainer, { width: 80 * scale, marginLeft: SPACING.lg * scale }]}>
+        <View style={[styles.rankOuterContainer, { width: isMobile ? 50 : 80 * scale, marginLeft: isMobile ? SPACING.sm : SPACING.lg * scale }]}>
           <View style={[styles.rankContainer, { width: rankBoxSize, height: rankBoxSize }]}>
             <Text style={[styles.rankText, { fontSize: rankFontSize }]}>{rank}</Text>
           </View>
@@ -109,23 +109,34 @@ export default function RankingsScreen({ navigation, route }) {
           </View>
 
           {/* Center Column: Business Info */}
-          <View style={[styles.centerCol, isMobile && { alignItems: 'flex-end', justifyContent: 'center' }]}>
+          <View style={[styles.centerCol, isMobile && { alignItems: 'flex-end', justifyContent: 'center', paddingLeft: 0 }]}>
             {item.city_name && item.city_name !== '—' ? (
-              <View style={[styles.headlineRow, isMobile && { justifyContent: 'flex-end' }]}>
-                <View style={styles.headlineHalf}>
-                  <Text style={[styles.businessName, { textAlign: 'right', fontSize: isMobile ? 22 : 40 * scale, marginTop: isMobile ? 0 : -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
+              isMobile ? (
+                <View style={{ alignItems: 'flex-end', width: '100%' }}>
+                  <Text style={[styles.businessName, { textAlign: 'right', fontSize: 22 }]} numberOfLines={2} adjustsFontSizeToFit>
+                    {item.business_name}
+                  </Text>
+                  <Text style={[styles.addressText, { textAlign: 'right', fontSize: 16, marginTop: 2, color: COLORS.accentLight }]} numberOfLines={1}>
                     {item.city_name}
                   </Text>
                 </View>
-                <Text style={[styles.businessName, { marginHorizontal: isMobile ? 4 : 6 * scale, fontSize: isMobile ? 22 : 40 * scale, marginTop: isMobile ? 0 : -8 * scale }]}>|</Text>
-                <View style={[styles.headlineHalf, isMobile && { flex: 0 }]}>
-                  <Text style={[styles.businessName, { textAlign: isMobile ? 'right' : 'left', fontSize: isMobile ? 22 : 40 * scale, marginTop: isMobile ? 0 : -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
-                    {item.business_name}
-                  </Text>
+              ) : (
+                <View style={styles.headlineRow}>
+                  <View style={styles.headlineHalf}>
+                    <Text style={[styles.businessName, { textAlign: 'right', fontSize: 40 * scale, marginTop: -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
+                      {item.city_name}
+                    </Text>
+                  </View>
+                  <Text style={[styles.businessName, { marginHorizontal: 6 * scale, fontSize: 40 * scale, marginTop: -8 * scale }]}>|</Text>
+                  <View style={styles.headlineHalf}>
+                    <Text style={[styles.businessName, { textAlign: 'left', fontSize: 40 * scale, marginTop: -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
+                      {item.business_name}
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )
             ) : (
-              <Text style={[styles.businessName, { fontSize: isMobile ? 24 : 40 * scale, marginTop: isMobile ? 0 : -8 * scale, textAlign: 'right' }]} numberOfLines={2} adjustsFontSizeToFit>
+              <Text style={[styles.businessName, { fontSize: isMobile ? 22 : 40 * scale, marginTop: isMobile ? 0 : -8 * scale, textAlign: 'right' }]} numberOfLines={2} adjustsFontSizeToFit>
                 {item.business_name}
               </Text>
             )}
@@ -175,7 +186,7 @@ export default function RankingsScreen({ navigation, route }) {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <View style={[styles.headlineBanner, { width: isMobile ? '95%' : '80%', transform: [{ translateX: isMobile ? 5 : 13 * scale }] }]}>
+          <View style={[styles.headlineBanner, { width: isMobile ? '95%' : '80%', transform: [{ translateX: isMobile ? 0 : 13 * scale }] }]}>
             <Text style={[styles.mainPageHeadline, { fontSize: isMobile ? 16 : 20 * scale }]}>{dynamicHeadline}</Text>
             {globalAvg > 0 && !loading && !error && (
               <Text style={[styles.mainPageSubtitle, { fontSize: isMobile ? 12 : 14 * scale }]}>
