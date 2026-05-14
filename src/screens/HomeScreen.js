@@ -14,7 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
-import { getHomeStats, signUpUser, getProfile } from '../database/queries';
+import { getHomeStats, signUpUser, getProfile, getDistricts, getCitiesByDistrict } from '../database/queries';
 import { supabase } from '../database/supabaseClient';
 export default function HomeScreen({ navigation }) {
   const [stats, setStats] = useState({ cities: 0, restaurants: 0, reviews: 0 });
@@ -106,7 +106,6 @@ export default function HomeScreen({ navigation }) {
     const district = districts.find(d => d.id === districtId);
     setFormData(prev => ({ ...prev, districtId, districtName: district?.name, cityId: null, cityName: null }));
     try {
-      const { getCitiesByDistrict } = require('../database/queries');
       const data = await getCitiesByDistrict(districtId);
       setFilteredCities(data);
     } catch (e) {
