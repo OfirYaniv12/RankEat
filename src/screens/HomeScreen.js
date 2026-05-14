@@ -8,22 +8,53 @@ import {
   StatusBar,
   useWindowDimensions,
   Dimensions,
+  ScrollView,
+  TextInput,
+  Modal,
+  Platform,
 } from 'react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
-import { getHomeStats } from '../database/queries';
-
+import { getHomeStats, signUpUser, getProfile } from '../database/queries';
+import { supabase } from '../database/supabaseClient';
 export default function HomeScreen({ navigation }) {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 768;
-
   const [stats, setStats] = useState({ cities: 0, restaurants: 0, reviews: 0 });
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Sign Up Modal State
+  const [user, setUser] = useState(null);
+  const [authError, setAuthError] = useState(null);
+  const [signUpModalVisible, setSignUpModalVisible] = useState(false);
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+
+  const [districts, setDistricts] = useState([]);
+  const [filteredCities, setFilteredCities] = useState([]);
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    districtId: null,
+    cityId: null,
+    districtName: null,
+    cityName: null
+  });
+
+  // Custom Picker State
+  const [selectionModalVisible, setSelectionModalVisible] = useState(false);
+  const [selectionType, setSelectionType] = useState(''); // 'district' or 'city'
+  const [selectionData, setSelectionData] = useState([]);
+
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const drawerAnim = useRef(new Animated.Value(Dimensions.get('window').width)).current; 
 
-  React.useEffect(() => {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const isWeb = Platform.OS === 'web';
+  useEffect(() => {
     fetchStats();
+    fetchDistricts();
+    checkSession();
     // Pulsing glow on button
     Animated.loop(
       Animated.sequence([
@@ -47,6 +78,129 @@ export default function HomeScreen({ navigation }) {
       setStats(data);
     } catch (e) {
       console.error('Error fetching stats:', e);
+    }
+  };
+
+  const checkSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const profile = await getProfile(session.user.id);
+        setUser({ ...session.user, ...profile });
+      }
+    } catch (e) {
+      console.error('Session check error:', e);
+    }
+  };
+
+  const fetchDistricts = async () => {
+    try {
+      const data = await getDistricts();
+      setDistricts(data);
+    } catch (e) {
+      console.error('Error fetching districts:', e);
+    }
+  };
+
+  const handleDistrictChange = async (districtId) => {
+    const district = districts.find(d => d.id === districtId);
+    setFormData(prev => ({ ...prev, districtId, districtName: district?.name, cityId: null, cityName: null }));
+    try {
+      const { getCitiesByDistrict } = require('../database/queries');
+      const data = await getCitiesByDistrict(districtId);
+      setFilteredCities(data);
+    } catch (e) {
+      console.error('Error fetching cities:', e);
+    }
+  };
+
+  const openSelection = (type) => {
+    if (type === 'city' && !formData.districtId) return;
+    setSelectionType(type);
+    setSelectionData(type === 'district' ? districts : filteredCities);
+    setSelectionModalVisible(true);
+  };
+
+  const handleSelectItem = (item) => {
+    if (selectionType === 'district') {
+      handleDistrictChange(item.id);
+    } else {
+      setFormData(prev => ({ ...prev, cityId: item.id, cityName: item.name }));
+    }
+    setSelectionModalVisible(false);
+  };
+
+  const closeSignUpModal = () => {
+    setSignUpModalVisible(false);
+    setAuthError(null);
+    setFormData({
+      fullName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      districtId: null,
+      cityId: null,
+      districtName: null,
+      cityName: null
+    });
+  };
+
+  const handleSignUp = async () => {
+    setAuthError(null);
+    
+    // 1. Validation
+    if (!formData.fullName || !formData.email || !formData.password || !formData.districtId || !formData.cityId) {
+      setAuthError('אנא מלא את כל השדות');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setAuthError('הסיסמאות אינן תואמות');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setAuthError('הסיסמה חייבת להכיל לפחות 6 תווים');
+      return;
+    }
+
+    setIsSubmittingAuth(true);
+    try {
+      // Split name
+      const nameParts = formData.fullName.trim().split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '—';
+
+      const newUser = await signUpUser({
+        email: formData.email,
+        password: formData.password,
+        firstName,
+        lastName,
+        districtId: formData.districtId,
+        cityId: formData.cityId
+      });
+
+      // Fetch full profile for local state
+      const profile = await getProfile(newUser.id);
+      setUser({ ...newUser, ...profile });
+      
+      setSignUpModalVisible(false);
+      // Reset form
+      setFormData({
+        fullName: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        districtId: null,
+        cityId: null,
+        districtName: null,
+        cityName: null
+      });
+    } catch (e) {
+      console.error('Signup error:', e);
+      setAuthError(e.message || 'שגיאה בתהליך ההרשמה');
+    } finally {
+      setIsSubmittingAuth(false);
     }
   };
 
@@ -100,17 +254,22 @@ export default function HomeScreen({ navigation }) {
       {/* Fixed Header */}
       <View style={[styles.topHeader, { paddingHorizontal: width * 0.1 }]}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.authBtn} onPress={() => {}}>
-            <Text style={styles.authText}>הרשמה</Text>
-          </TouchableOpacity>
-          <View style={{ width: SPACING.md }} />
-          <TouchableOpacity style={styles.authBtn} onPress={() => {}}>
-            <Text style={styles.authText}>התחברות</Text>
-          </TouchableOpacity>
+          {user ? (
+            <Text style={styles.authText}>היי, {user.first_name}</Text>
+          ) : (
+            <>
+              <TouchableOpacity style={styles.authBtn} onPress={() => setSignUpModalVisible(true)}>
+                <Text style={styles.authText}>הרשמה</Text>
+              </TouchableOpacity>
+              <View style={{ width: SPACING.md }} />
+              <TouchableOpacity style={styles.authBtn} onPress={() => {}}>
+                <Text style={styles.authText}>התחברות</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerLogo}>🍔 RankEat</Text>
         </View>
 
         <TouchableOpacity style={styles.headerRight} onPress={toggleDrawer}>
@@ -132,7 +291,7 @@ export default function HomeScreen({ navigation }) {
           />
           <Animated.View style={[
             styles.drawerContent, 
-            { width: isMobile ? '70%' : 300, transform: [{ translateX: drawerAnim }] }
+            { width: isMobile ? '35%' : 300, transform: [{ translateX: drawerAnim }] }
           ]}>
             <View style={styles.drawerHeader}>
               <Text style={styles.drawerTitle}>תפריט</Text>
@@ -144,6 +303,139 @@ export default function HomeScreen({ navigation }) {
           </Animated.View>
         </View>
       )}
+
+      {/* Sign Up Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={signUpModalVisible}
+        onRequestClose={() => setSignUpModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.signUpContent, isMobile ? styles.mobileSignUp : styles.desktopSignUp]}>
+            <View style={styles.signUpHeader}>
+              <TouchableOpacity onPress={closeSignUpModal}>
+                <Text style={styles.closeModalX}>✕</Text>
+              </TouchableOpacity>
+              <Text style={styles.signUpTitle}>הצטרפות ל-RankEat</Text>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.signUpForm}>
+              <Text style={styles.inputLabel}>שם מלא</Text>
+              <TextInput 
+                style={styles.authInput}
+                placeholder="ישראל ישראלי"
+                placeholderTextColor={COLORS.textSecondary}
+                value={formData.fullName}
+                onChangeText={(val) => setFormData({...formData, fullName: val})}
+              />
+
+              <Text style={styles.inputLabel}>אימייל</Text>
+              <TextInput 
+                style={styles.authInput}
+                keyboardType="email-address"
+                placeholder="example@mail.com"
+                placeholderTextColor={COLORS.textSecondary}
+                value={formData.email}
+                onChangeText={(val) => setFormData({...formData, email: val})}
+              />
+
+              <Text style={styles.inputLabel}>סיסמה</Text>
+              <TextInput 
+                style={styles.authInput}
+                secureTextEntry
+                placeholder="********"
+                placeholderTextColor={COLORS.textSecondary}
+                value={formData.password}
+                onChangeText={(val) => setFormData({...formData, password: val})}
+              />
+
+              <Text style={styles.inputLabel}>אימות סיסמה</Text>
+              <TextInput 
+                style={styles.authInput}
+                secureTextEntry
+                placeholder="********"
+                placeholderTextColor={COLORS.textSecondary}
+                value={formData.confirmPassword}
+                onChangeText={(val) => setFormData({...formData, confirmPassword: val})}
+              />
+
+              <Text style={styles.inputLabel}>אזור (מחוז)</Text>
+              <TouchableOpacity 
+                style={styles.authInput} 
+                onPress={() => openSelection('district')}
+              >
+                <Text style={[styles.authInputText, !formData.districtId && { color: COLORS.textSecondary }]}>
+                  {formData.districtName || 'בחר אזור...'}
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={styles.inputLabel}>עיר</Text>
+              <TouchableOpacity 
+                style={[styles.authInput, !formData.districtId && { opacity: 0.5 }]} 
+                onPress={() => openSelection('city')}
+                disabled={!formData.districtId}
+              >
+                <Text style={[styles.authInputText, !formData.cityId && { color: COLORS.textSecondary }]}>
+                  {formData.cityName || 'בחר עיר...'}
+                </Text>
+              </TouchableOpacity>
+
+              {authError && (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{authError}</Text>
+                </View>
+              )}
+
+              <TouchableOpacity 
+                style={[styles.submitBtn, isSubmittingAuth && { opacity: 0.7 }]} 
+                onPress={handleSignUp}
+                disabled={isSubmittingAuth}
+              >
+                <Text style={styles.submitBtnText}>{isSubmittingAuth ? 'שומר...' : 'הרשמה'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.switchAuth} onPress={() => {}}>
+                <Text style={styles.switchAuthText}>כבר יש לך חשבון? להתחברות</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Item Selection Modal (Custom Picker) */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={selectionModalVisible}
+        onRequestClose={() => setSelectionModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.selectionContent}>
+            <View style={styles.selectionHeader}>
+              <Text style={styles.selectionTitle}>
+                {selectionType === 'district' ? 'בחר אזור' : 'בחר עיר'}
+              </Text>
+              <TouchableOpacity onPress={() => setSelectionModalVisible(false)}>
+                <Text style={styles.closeSelection}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ maxHeight: 400 }}>
+              <ScrollView>
+                {selectionData.map((item) => (
+                  <TouchableOpacity 
+                    key={item.id} 
+                    style={styles.selectionItem}
+                    onPress={() => handleSelectItem(item)}
+                  >
+                    <Text style={styles.selectionItemText}>{item.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Background decorative circles */}
       <View style={[styles.circle1, isMobile && styles.circle1Mobile]} />
@@ -201,6 +493,170 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
     alignItems: 'center',
     overflow: 'hidden',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signUpContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  mobileSignUp: {
+    width: '95%',
+    height: '90%',
+  },
+  desktopSignUp: {
+    width: 500,
+    maxHeight: '85%',
+  },
+  signUpHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SPACING.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  signUpTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 24,
+    color: COLORS.textPrimary,
+  },
+  closeModalX: {
+    fontSize: 24,
+    color: COLORS.textSecondary,
+  },
+  signUpForm: {
+    padding: SPACING.xl,
+  },
+  inputLabel: {
+    fontFamily: FONTS.semibold,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
+    textAlign: 'right',
+  },
+  authInput: {
+    backgroundColor: COLORS.bg,
+    color: '#FFFFFF',
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.lg,
+    justifyContent: 'center',
+    textAlign: 'right',
+  },
+  authInputText: {
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.regular,
+    fontSize: 16,
+    textAlign: 'right',
+  },
+  selectionContent: {
+    backgroundColor: COLORS.surface,
+    width: '80%',
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  selectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.bg,
+  },
+  selectionTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 18,
+    color: COLORS.textPrimary,
+  },
+  closeSelection: {
+    fontSize: 20,
+    color: COLORS.textSecondary,
+  },
+  selectionItem: {
+    padding: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  selectionItemText: {
+    fontFamily: FONTS.regular,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    textAlign: 'right',
+  },
+  selectWrapper: {
+    marginBottom: SPACING.lg,
+  },
+  webSelect: {
+    backgroundColor: COLORS.bg,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.regular,
+    fontSize: 16,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    width: '100%',
+    outlineWidth: 0,
+  },
+  mobileSelectPlaceholder: {
+    backgroundColor: COLORS.bg,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.regular,
+    fontSize: 16,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    width: '100%',
+  },
+  submitBtn: {
+    backgroundColor: COLORS.accent,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    marginTop: SPACING.md,
+  },
+  submitBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 18,
+    color: '#FFF',
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(255,107,107,0.1)',
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: '#FF6B6B',
+  },
+  errorText: {
+    color: '#FF6B6B',
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  switchAuth: {
+    marginTop: SPACING.xl,
+    alignItems: 'center',
+  },
+  switchAuthText: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textDecorationLine: 'underline',
   },
   mainContent: {
     flex: 1,

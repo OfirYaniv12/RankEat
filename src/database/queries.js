@@ -189,14 +189,19 @@ export const getOrCreateMockUser = async () => {
 };
 
 export const addReview = async ({ dishId, rating, comment }) => {
-  const mockUserId = '00000000-0000-0000-0000-000000000000';
+  // Fetch the real authenticated user ID
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('אתה חייב להיות מחובר כדי להוסיף דירוג');
+  }
 
   // 1. Insert review
   const { error: reviewError } = await supabase
     .from('reviews')
     .insert({
       dish_id: dishId,
-      user_id: mockUserId, // Updated to user_id as requested
+      user_id: user.id, 
       rating: parseFloat(rating),
       comment: comment || '',
     });
@@ -233,6 +238,44 @@ export const addReview = async ({ dishId, rating, comment }) => {
   }
 
   return true;
+};
+
+// ─── AUTH & PROFILES ────────────────────────────────────────────────────────
+export const signUpUser = async ({ email, password, firstName, lastName, districtId, cityId }) => {
+  // 1. Supabase Auth Sign Up
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (authError) throw authError;
+  if (!authData.user) throw new Error('Signup failed: No user returned');
+
+  // 2. Create Profile in public.profiles
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .insert({
+      id: authData.user.id,
+      first_name: firstName,
+      last_name: lastName,
+      district_id: districtId,
+      city_id: cityId,
+      trust_score: 1.0
+    });
+
+  if (profileError) throw profileError;
+  return authData.user;
+};
+
+export const getProfile = async (userId) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) throw error;
+  return data;
 };
 
 // ─── STATISTICS ──────────────────────────────────────────────────────────────
