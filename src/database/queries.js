@@ -197,6 +197,7 @@ export const addReview = async ({ dishId, rating, comment }) => {
   }
 
   // 1. Insert review
+  // The dishes table (avg_rating, review_count) is updated automatically via DB trigger
   const { error: reviewError } = await supabase
     .from('reviews')
     .insert({
@@ -209,32 +210,6 @@ export const addReview = async ({ dishId, rating, comment }) => {
   if (reviewError) {
     console.error('Supabase Insert Review Error:', reviewError);
     throw new Error(`addReview/insert: ${reviewError.message}`);
-  }
-
-  // 2. Fetch all reviews for this dish to recalculate avg
-  const { data: allReviews, error: fetchError } = await supabase
-    .from('reviews')
-    .select('rating')
-    .eq('dish_id', dishId);
-
-  if (fetchError) {
-    console.error('Supabase Fetch Reviews Error:', fetchError);
-    throw new Error(`addReview/fetch: ${fetchError.message}`);
-  }
-
-  const count = allReviews.length;
-  const sum = allReviews.reduce((acc, r) => acc + r.rating, 0);
-  const avg = count > 0 ? sum / count : parseFloat(rating);
-
-  // 3. Update dish avg_rating and review_count
-  const { error: updateError } = await supabase
-    .from('dishes')
-    .update({ avg_rating: avg, review_count: count })
-    .eq('id', dishId);
-
-  if (updateError) {
-    console.error('Supabase Update Dish Error:', updateError);
-    throw new Error(`addReview/update: ${updateError.message}`);
   }
 
   return true;

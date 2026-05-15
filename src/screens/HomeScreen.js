@@ -12,19 +12,27 @@ import {
   TextInput,
   Modal,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import { getHomeStats, signUpUser, getProfile, getDistricts, getCitiesByDistrict } from '../database/queries';
 import { supabase } from '../database/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 export default function HomeScreen({ navigation }) {
   const [stats, setStats] = useState({ cities: 0, restaurants: 0, reviews: 0 });
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Sign Up Modal State
-  const [user, setUser] = useState(null);
+  // Auth State
+  const { user, setUser } = useAuth();
   const [authError, setAuthError] = useState(null);
   const [signUpModalVisible, setSignUpModalVisible] = useState(false);
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+
+  const [loginFormData, setLoginFormData] = useState({
+    email: '',
+    password: ''
+  });
 
   const [districts, setDistricts] = useState([]);
   const [filteredCities, setFilteredCities] = useState([]);
@@ -42,7 +50,7 @@ export default function HomeScreen({ navigation }) {
   // Custom Picker State
   const [selectionModalVisible, setSelectionModalVisible] = useState(false);
   const [selectionType, setSelectionType] = useState(''); // 'district' or 'city'
-  const [selectionData, setSelectionData] = useState([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -54,7 +62,6 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     fetchStats();
     fetchDistricts();
-    checkSession();
     // Pulsing glow on button
     Animated.loop(
       Animated.sequence([
@@ -81,18 +88,6 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  const checkSession = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const profile = await getProfile(session.user.id);
-        setUser({ ...session.user, ...profile });
-      }
-    } catch (e) {
-      console.error('Session check error:', e);
-    }
-  };
-
   const fetchDistricts = async () => {
     try {
       const data = await getDistricts();
@@ -105,18 +100,21 @@ export default function HomeScreen({ navigation }) {
   const handleDistrictChange = async (districtId) => {
     const district = districts.find(d => d.id === districtId);
     setFormData(prev => ({ ...prev, districtId, districtName: district?.name, cityId: null, cityName: null }));
+    setFilteredCities([]); // Clear old cities
+    setIsLoadingCities(true);
     try {
       const data = await getCitiesByDistrict(districtId);
       setFilteredCities(data);
     } catch (e) {
       console.error('Error fetching cities:', e);
+    } finally {
+      setIsLoadingCities(false);
     }
   };
 
   const openSelection = (type) => {
     if (type === 'city' && !formData.districtId) return;
     setSelectionType(type);
-    setSelectionData(type === 'district' ? districts : filteredCities);
     setSelectionModalVisible(true);
   };
 
@@ -142,6 +140,67 @@ export default function HomeScreen({ navigation }) {
       districtName: null,
       cityName: null
     });
+  };
+
+  const closeLoginModal = () => {
+    setLoginModalVisible(false);
+    setAuthError(null);
+    setLoginFormData({
+      email: '',
+      password: ''
+    });
+  };
+
+  const switchToSignUp = () => {
+    closeLoginModal();
+    setSignUpModalVisible(true);
+  };
+
+  const switchToLogin = () => {
+    closeSignUpModal();
+    setLoginModalVisible(true);
+  };
+
+  const handleLogin = async () => {
+    setAuthError(null);
+    if (!loginFormData.email || !loginFormData.password) {
+      setAuthError('אנא הזן אימייל וסיסמה');
+      return;
+    }
+
+    setIsSubmittingAuth(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginFormData.email,
+        password: loginFormData.password,
+      });
+
+      if (error) {
+        if (error.message === 'Invalid login credentials') {
+          throw new Error('אימייל או סיסמה לא נכונים');
+        }
+        throw error;
+      }
+
+      // Fetch profile
+      const profile = await getProfile(data.user.id);
+      setUser({ ...data.user, ...profile });
+      closeLoginModal();
+    } catch (e) {
+      console.error('Login error:', e);
+      setAuthError(e.message || 'שגיאה בתהליך ההתחברות');
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
   };
 
   const handleSignUp = async () => {
@@ -254,14 +313,20 @@ export default function HomeScreen({ navigation }) {
       <View style={[styles.topHeader, { paddingHorizontal: width * 0.1 }]}>
         <View style={styles.headerLeft}>
           {user ? (
-            <Text style={styles.authText}>היי, {user.first_name}</Text>
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center' }}>
+              <Text style={styles.authText}>היי, {user.first_name}</Text>
+              <View style={{ width: SPACING.md }} />
+              <TouchableOpacity style={styles.authBtn} onPress={handleLogout}>
+                <Text style={styles.authText}>התנתקות</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <>
               <TouchableOpacity style={styles.authBtn} onPress={() => setSignUpModalVisible(true)}>
                 <Text style={styles.authText}>הרשמה</Text>
               </TouchableOpacity>
               <View style={{ width: SPACING.md }} />
-              <TouchableOpacity style={styles.authBtn} onPress={() => {}}>
+              <TouchableOpacity style={styles.authBtn} onPress={() => setLoginModalVisible(true)}>
                 <Text style={styles.authText}>התחברות</Text>
               </TouchableOpacity>
             </>
@@ -394,8 +459,67 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.submitBtnText}>{isSubmittingAuth ? 'שומר...' : 'הרשמה'}</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.switchAuth} onPress={() => {}}>
+              <TouchableOpacity style={styles.switchAuth} onPress={switchToLogin}>
                 <Text style={styles.switchAuthText}>כבר יש לך חשבון? להתחברות</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Login Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={loginModalVisible}
+        onRequestClose={closeLoginModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.signUpContent, isMobile ? styles.mobileSignUp : styles.desktopSignUp]}>
+            <View style={styles.signUpHeader}>
+              <TouchableOpacity onPress={closeLoginModal}>
+                <Text style={styles.closeModalX}>✕</Text>
+              </TouchableOpacity>
+              <Text style={styles.signUpTitle}>התחברות ל-RankEat</Text>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.signUpForm}>
+              <Text style={styles.inputLabel}>אימייל</Text>
+              <TextInput 
+                style={styles.authInput}
+                keyboardType="email-address"
+                placeholder="example@mail.com"
+                placeholderTextColor={COLORS.textSecondary}
+                value={loginFormData.email}
+                onChangeText={(val) => setLoginFormData({...loginFormData, email: val})}
+              />
+
+              <Text style={styles.inputLabel}>סיסמה</Text>
+              <TextInput 
+                style={styles.authInput}
+                secureTextEntry
+                placeholder="********"
+                placeholderTextColor={COLORS.textSecondary}
+                value={loginFormData.password}
+                onChangeText={(val) => setLoginFormData({...loginFormData, password: val})}
+              />
+
+              {authError && (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{authError}</Text>
+                </View>
+              )}
+
+              <TouchableOpacity 
+                style={[styles.submitBtn, isSubmittingAuth && { opacity: 0.7 }]} 
+                onPress={handleLogin}
+                disabled={isSubmittingAuth}
+              >
+                <Text style={styles.submitBtnText}>{isSubmittingAuth ? 'מתחבר...' : 'התחברות'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.switchAuth} onPress={switchToSignUp}>
+                <Text style={styles.switchAuthText}>עדיין לא רשום? להרשמה</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -420,17 +544,24 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             <View style={{ maxHeight: 400 }}>
-              <ScrollView>
-                {selectionData.map((item) => (
-                  <TouchableOpacity 
-                    key={item.id} 
-                    style={styles.selectionItem}
-                    onPress={() => handleSelectItem(item)}
-                  >
-                    <Text style={styles.selectionItemText}>{item.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              {selectionType === 'city' && isLoadingCities ? (
+                <View style={{ padding: SPACING.xl, alignItems: 'center' }}>
+                  <ActivityIndicator color={COLORS.accent} />
+                  <Text style={[styles.selectionItemText, { textAlign: 'center', marginTop: 10 }]}>טוען ערים...</Text>
+                </View>
+              ) : (
+                <ScrollView>
+                  {(selectionType === 'district' ? districts : filteredCities).map((item) => (
+                    <TouchableOpacity 
+                      key={item.id} 
+                      style={styles.selectionItem}
+                      onPress={() => handleSelectItem(item)}
+                    >
+                      <Text style={styles.selectionItemText}>{item.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
             </View>
           </View>
         </View>

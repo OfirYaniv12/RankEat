@@ -19,6 +19,7 @@ import {
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { getRankedDishes, addReview } from '../database/queries';
+import { supabase } from '../database/supabaseClient';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 
 export default function RankingsScreen({ navigation, route }) {
@@ -31,7 +32,6 @@ export default function RankingsScreen({ navigation, route }) {
   const isMobile = width < 768;
 
   const [dishes, setDishes] = useState([]);
-  const [globalAvg, setGlobalAvg] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -41,6 +41,7 @@ export default function RankingsScreen({ navigation, route }) {
   const [ratingInput, setRatingInput] = useState('');
   const [commentInput, setCommentInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [ratingError, setRatingError] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -50,13 +51,12 @@ export default function RankingsScreen({ navigation, route }) {
 
   const loadRankings = async () => {
     try {
-      const { dishes: data, globalAvg: avg } = await getRankedDishes({
+      const { dishes: data } = await getRankedDishes({
         categoryId: category.id,
         districtId: district?.id,
         cityId: city?.id,
       });
       setDishes(data);
-      setGlobalAvg(avg);
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
     } catch (e) {
       console.error(e);
@@ -69,44 +69,89 @@ export default function RankingsScreen({ navigation, route }) {
   const handleOpenModal = (dish) => {
     setSelectedDish(dish);
     setRatingInput('');
+    setRatingError(false);
     setCommentInput('');
     setModalVisible(true);
   };
 
   const handleRatingChange = (text) => {
+    // 1. Filter characters and handle dots
     let formatted = text.replace(/[^0-9.]/g, '');
     const parts = formatted.split('.');
     if (parts.length > 2) {
       formatted = parts[0] + '.' + parts.slice(1).join('');
     }
+
+    // 2. Prevent more than one decimal place
+    if (parts.length === 2 && parts[1].length > 1) {
+      formatted = parts[0] + '.' + parts[1].slice(0, 1);
+    }
+
     setRatingInput(formatted);
+
+    // 3. Real-time validation (1-10)
+    const val = parseFloat(formatted);
+    if (formatted === '' || isNaN(val) || val < 1 || val > 10) {
+      setRatingError(true);
+    } else {
+      setRatingError(false);
+    }
   };
 
   const handleSaveRating = async () => {
     const val = parseFloat(ratingInput);
-    if (isNaN(val) || val < 1.0 || val > 10.0) {
+    if (isNaN(val) || val < 1 || val > 10.1) {
+      const msg = 'אנא הזן דירוג בין 1 ל-10';
       if (Platform.OS === 'web') {
-        window.alert('אנא הזן דירוג בין 1.0 ל-10.0');
+        window.alert(msg);
       } else {
-        Alert.alert('שגיאה', 'אנא הזן דירוג בין 1.0 ל-10.0');
+        Alert.alert('שגיאה', msg);
       }
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await addReview({ dishId: selectedDish.id, rating: val, comment: commentInput });
+      // 1. Auth Guard: Check if user is logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        if (Platform.OS === 'web') {
+          window.alert('אתה חייב להיות מחובר כדי לדרג! אנא הירשם או התחבר.');
+        } else {
+          Alert.alert('התחברות דרושה', 'אתה חייב להיות מחובר כדי לדרג! אנא הירשם או התחבר.');
+        }
+        // Here you would trigger setAuthModalVisible(true) once the UI is ready
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Submit Review
+      await addReview({ 
+        dishId: selectedDish.id, 
+        rating: val, 
+        comment: commentInput 
+      });
+
+      // 3. Success Flow
       setModalVisible(false);
       setRatingInput('');
       setCommentInput('');
       setLoading(true);
       await loadRankings();
-    } catch (e) {
-      console.error(e);
+      
       if (Platform.OS === 'web') {
-        window.alert('שגיאה: לא ניתן לשמור את הדירוג כעת');
+        // window.alert('הדירוג נשמר בהצלחה!');
       } else {
-        Alert.alert('שגיאה', 'לא ניתן לשמור את הדירוג כעת');
+        // Alert.alert('תודה!', 'הדירוג שלך נשמר בהצלחה');
+      }
+    } catch (e) {
+      console.error('Save Rating Error:', e);
+      const errorMsg = e.message || 'לא ניתן לשמור את הדירוג כעת';
+      if (Platform.OS === 'web') {
+        window.alert(`שגיאה: ${errorMsg}`);
+      } else {
+        Alert.alert('שגיאה', errorMsg);
       }
     } finally {
       setIsSubmitting(false);
@@ -211,7 +256,7 @@ export default function RankingsScreen({ navigation, route }) {
             {isMobile && (
               <View style={[styles.mobileActionRow, { marginTop: 16 }]}>
                 <View style={{ flexDirection: 'row-reverse', alignItems: 'center' }}>
-                  <Text style={styles.mobileRatingNumber}>★ {item.avg_rating.toFixed(1)}</Text>
+                  <Text style={styles.mobileRatingNumber}>★ {item.weighted_score.toFixed(1)}</Text>
                   <Text style={styles.mobileReviewCount}>({item.review_count} דירוגים)</Text>
                 </View>
                 <TouchableOpacity style={styles.mobileAddReviewBtn} onPress={() => handleOpenModal(item)}>
@@ -224,7 +269,7 @@ export default function RankingsScreen({ navigation, route }) {
           {/* Left Column: Rating & Action (Desktop Only) */}
           {!isMobile && (
             <View style={[styles.leftCol, { width: 110 * scale }]}>
-              <Text style={[styles.ratingNumber, { fontSize: 34 * scale, marginBottom: SPACING.xl * scale }]}>★ {item.avg_rating.toFixed(1)}</Text>
+              <Text style={[styles.ratingNumber, { fontSize: 34 * scale, marginBottom: SPACING.xl * scale }]}>★ {item.weighted_score.toFixed(1)}</Text>
               <TouchableOpacity style={[styles.addReviewBtn, { paddingVertical: 12 * scale }]} onPress={() => handleOpenModal(item)}>
                 <Text style={[styles.addReviewBtnText, { fontSize: 16 * scale }]}>הוסף דירוג</Text>
               </TouchableOpacity>
@@ -251,11 +296,7 @@ export default function RankingsScreen({ navigation, route }) {
         <View style={styles.headerCenter}>
           <View style={[styles.headlineBanner, { width: isMobile ? '95%' : '80%', transform: [{ translateX: isMobile ? 0 : 13 * scale }] }]}>
             <Text style={[styles.mainPageHeadline, { fontSize: isMobile ? 16 : 20 * scale }]}>{dynamicHeadline}</Text>
-            {globalAvg > 0 && !loading && !error && (
-              <Text style={[styles.mainPageSubtitle, { fontSize: isMobile ? 12 : 14 * scale }]}>
-                ממוצע גלובלי: {globalAvg.toFixed(2)}
-              </Text>
-            )}
+
           </View>
         </View>
         <View style={{ width: 40 }} />
@@ -309,16 +350,20 @@ export default function RankingsScreen({ navigation, route }) {
 
             <Text style={styles.modalTitle}>נו איך היה?</Text>
             
-            <TextInput
-              style={styles.ratingInput}
+             <TextInput
+              style={[styles.ratingInput, ratingError && { borderColor: '#FF6B6B' }]}
               keyboardType="decimal-pad"
+              inputMode="decimal"
               maxLength={4}
-              placeholder="8.4"
+              placeholder="10"
               placeholderTextColor={COLORS.textSecondary}
               value={ratingInput}
               onChangeText={handleRatingChange}
               editable={!isSubmitting}
             />
+            {ratingError && ratingInput.length > 0 && (
+              <Text style={styles.errorTextSmall}>נא להזין ציון בין 1 ל-10</Text>
+            )}
 
             <TextInput
               style={styles.commentInput}
@@ -333,9 +378,9 @@ export default function RankingsScreen({ navigation, route }) {
             />
             
             <TouchableOpacity 
-              style={[styles.saveBtn, (!ratingInput || isSubmitting) && { opacity: 0.5 }]} 
+              style={[styles.saveBtn, (!ratingInput || ratingError || isSubmitting) && { opacity: 0.5 }]} 
               onPress={handleSaveRating}
-              disabled={!ratingInput || isSubmitting}
+              disabled={!ratingInput || ratingError || isSubmitting}
             >
               <Text style={styles.saveBtnText}>{isSubmitting ? 'שומר...' : 'שמור דירוג'}</Text>
             </TouchableOpacity>
@@ -698,5 +743,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     paddingHorizontal: SPACING.md,
+  },
+  errorTextSmall: {
+    color: '#FF6B6B',
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    marginBottom: SPACING.md,
+    marginTop: -SPACING.sm,
   },
 });
