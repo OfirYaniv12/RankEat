@@ -13,6 +13,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import { signUpUser, getProfile, getDistricts, getCitiesByDistrict } from '../database/queries';
 import { supabase } from '../database/supabaseClient';
@@ -21,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 export default function GlobalLayout({ children }) {
   const { user, setUser } = useAuth();
   const { width } = useWindowDimensions();
+  const navigation = useNavigation();
   const isMobile = width < 768;
 
   // Drawer State
@@ -256,7 +258,7 @@ export default function GlobalLayout({ children }) {
             <View style={{ flexDirection: 'row-reverse', alignItems: 'center' }}>
               <Text style={styles.authText}>היי, {user.first_name}</Text>
               <View style={{ width: SPACING.md }} />
-              <TouchableOpacity style={styles.authBtn} onPress={() => {}}>
+              <TouchableOpacity style={styles.authBtn} onPress={() => navigation.navigate('Profile')}>
                 <Text style={styles.authText}>הפרופיל שלי</Text>
               </TouchableOpacity>
               <View style={{ width: SPACING.md }} />
@@ -364,7 +366,7 @@ export default function GlobalLayout({ children }) {
                 value={formData.confirmPassword}
                 onChangeText={(val) => setFormData({...formData, confirmPassword: val})}
               />
-              <Text style={styles.inputLabel}>אזור (מחוז)</Text>
+              <Text style={styles.inputLabel}>אזור</Text>
               <TouchableOpacity style={styles.authInput} onPress={() => openSelection('district')}>
                 <Text style={[styles.authInputText, !formData.districtId && { color: COLORS.textSecondary }]}>
                   {formData.districtName || 'בחר אזור...'}

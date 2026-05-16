@@ -20,7 +20,7 @@ I18nManager.forceRTL(true);
 
 const SEARCH_MODES = [
   { id: 'עירוני', label: 'עירוני' },
-  { id: 'מחוזי', label: 'מחוזי' },
+  { id: 'אזורי', label: 'אזורי' },
   { id: 'ארצי', label: 'ארצי' },
 ];
 
@@ -190,7 +190,7 @@ export default function CategorySelectScreen({ navigation }) {
 
     navigation.navigate('Rankings', {
       category: selectedCategory,
-      district: searchMode === 'מחוזי' ? selectedLocation : null,
+      district: searchMode === 'אזורי' ? selectedLocation : null,
       city: searchMode === 'עירוני' ? selectedLocation : null,
     });
   };
@@ -198,7 +198,7 @@ export default function CategorySelectScreen({ navigation }) {
   const getLocationPlaceholder = () => {
     if (searchMode === 'ארצי') return 'כל הארץ\u200F';
     if (locationQuery.length > 0) return '';
-    return searchMode === 'עירוני' ? 'הזן את שם העיר המבוקשת\u200F' : 'הזן את שם המחוז המבוקש\u200F';
+    return searchMode === 'עירוני' ? 'הזן את שם העיר המבוקשת\u200F' : 'הזן את שם האזור המבוקש\u200F';
   };
 
   return (

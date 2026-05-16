@@ -255,10 +255,12 @@ export default function RankingsScreen({ navigation, route }) {
             {/* Mobile-Only: Rating & Action injected under the info! */}
             {isMobile && (
               <View style={[styles.mobileActionRow, { marginTop: 16 }]}>
-                <View style={{ flexDirection: 'row-reverse', alignItems: 'center' }}>
-                  <Text style={styles.mobileRatingNumber}>★ {item.weighted_score.toFixed(1)}</Text>
-                  <Text style={styles.mobileReviewCount}>({item.review_count} דירוגים)</Text>
+                <View style={styles.ratingBadge}>
+                  <Text style={[styles.ratingBadgeText, { fontSize: 24 }]} numberOfLines={1}>
+                    ★ {item.weighted_score.toFixed(1)}
+                  </Text>
                 </View>
+                <Text style={styles.mobileReviewCount}>({item.review_count} דירוגים)</Text>
                 <TouchableOpacity style={styles.mobileAddReviewBtn} onPress={() => handleOpenModal(item)}>
                   <Text style={styles.mobileAddReviewBtnText}>הוסף דירוג</Text>
                 </TouchableOpacity>
@@ -268,8 +270,12 @@ export default function RankingsScreen({ navigation, route }) {
 
           {/* Left Column: Rating & Action (Desktop Only) */}
           {!isMobile && (
-            <View style={[styles.leftCol, { width: 110 * scale }]}>
-              <Text style={[styles.ratingNumber, { fontSize: 34 * scale, marginBottom: SPACING.xl * scale }]}>★ {item.weighted_score.toFixed(1)}</Text>
+            <View style={[styles.leftCol, { width: 140 * scale }]}>
+              <View style={[styles.ratingBadge, { marginBottom: SPACING.xl * scale }]}>
+                <Text style={[styles.ratingBadgeText, { fontSize: 24 * scale }]} numberOfLines={1}>
+                  ★ {item.weighted_score.toFixed(1)}
+                </Text>
+              </View>
               <TouchableOpacity style={[styles.addReviewBtn, { paddingVertical: 12 * scale }]} onPress={() => handleOpenModal(item)}>
                 <Text style={[styles.addReviewBtnText, { fontSize: 16 * scale }]}>הוסף דירוג</Text>
               </TouchableOpacity>
@@ -556,7 +562,7 @@ const styles = StyleSheet.create({
   leftCol: {
     alignItems: 'center',
     justifyContent: 'center', // Keep them close to the center
-    width: 110, // Wider column for a bigger button
+    width: 140, // Increased to prevent wrapping
   },
   ratingNumber: {
     fontFamily: FONTS.bold,
@@ -626,14 +632,19 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: SPACING.md,
   },
-  mobileRatingNumber: {
-    fontFamily: FONTS.bold,
-    fontSize: 20, 
-    color: '#FFD700',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 1,
-    marginLeft: SPACING.xs,
+  ratingBadge: {
+    backgroundColor: 'rgba(255, 127, 80, 0.15)',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  ratingBadgeText: {
+    color: '#FF7F50',
+    fontWeight: 'bold',
   },
   mobileReviewCount: {
     fontFamily: FONTS.regular,
