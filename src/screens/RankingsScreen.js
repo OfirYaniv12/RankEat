@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xl,
+    paddingTop: SPACING.xl + 60, // Added space for global header
     paddingBottom: SPACING.md,
   },
   backBtn: {
