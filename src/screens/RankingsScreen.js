@@ -145,77 +145,105 @@ export default function RankingsScreen({ navigation, route }) {
     // 1. Mobile Layout Branch (isMobile === true)
     if (isMobile) {
       return (
-        <Animated.View style={[{ opacity: fadeAnim }, styles.cardWrapper]}>
-          <View style={styles.outerRowContainer}>
-            {/* Rank Circle on the FAR RIGHT */}
-            <View style={[styles.rankBadgeCircle, { width: 32, height: 32, borderRadius: 16 }]}>
-              <Text style={[styles.rankBadgeText, { fontSize: 16 }]}>{rank}</Text>
+        <Animated.View style={[{ opacity: fadeAnim, width: '100%', maxWidth: 800, alignSelf: 'center' }, styles.cardWrapper]}>
+          {/* Card Container: position: relative, padding: 20, spacious feel */}
+          <View style={[styles.premiumCard, { 
+            position: 'relative', 
+            width: '100%', 
+            flexDirection: 'column', 
+            padding: 20, 
+            marginBottom: 16 
+          }]}>
+            
+            {/* Rank Circle as absolute overlay top-right */}
+            <View style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              zIndex: 10,
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: '#FF7F50',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+              <Text style={{
+                color: '#FFFFFF',
+                fontFamily: FONTS.bold,
+                fontSize: 16,
+                fontWeight: 'bold',
+                textAlign: 'center',
+              }}>
+                {rank}
+              </Text>
             </View>
 
-            {/* Main Card Container with column direction */}
-            <View style={[styles.premiumCard, { flex: 1, flexDirection: 'column', padding: 12 }]}>
-              
-              {/* Top/Main Section: Image, Text, and Rating Pill */}
-              <View style={{
-                flexDirection: 'row-reverse',
-                alignItems: 'flex-start',
-                width: '100%',
-              }}>
-                {/* Right Column: Dish Image */}
-                <View style={[styles.photoPlaceholder, { width: 80, height: 80 }]}>
-                  <MaterialIcons name="lunch-dining" size={28} color="#FF7F50" />
-                </View>
-
-                {/* Middle Column: Text Info */}
-                <View style={[styles.textSection, { marginHorizontal: 12 }]}>
-                  <Text style={[styles.cardTitle, { fontSize: 20 }]} numberOfLines={2}>
-                    {item.business_name} | {item.city_name}
-                  </Text>
-                  <Text style={[styles.cardAddress, { fontSize: 14 }]} numberOfLines={1}>
-                    {item.address || 'כתובת לא הוזנה'}
-                  </Text>
-                  <Text style={[styles.cardReviews, { fontSize: 12 }]} numberOfLines={1}>
-                    דורג ע"י {item.review_count || 0} אנשים
-                  </Text>
-                </View>
-
-                {/* Far Left Column: Rating Badge */}
-                <View style={[styles.ratingBadge, { paddingVertical: 6, paddingHorizontal: 10, alignSelf: 'flex-start' }]}>
-                  <Text style={[styles.ratingBadgeText, { fontSize: 14 }]}>
-                    ★ {item.weighted_score.toFixed(1)}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Bottom Action Section: Buttons stacked/row below */}
-              <View style={{
-                flexDirection: 'row',
-                justifyContent: 'flex-start',
-                alignItems: 'center',
-                marginTop: 16,
-                gap: 10,
-                flexShrink: 0,
-              }}>
-                <TouchableOpacity 
-                  style={[styles.outlineBtn, { paddingVertical: 8, paddingHorizontal: 12 }]}
-                  onPress={() => navigation.navigate('BusinessProfile', { businessId: item.business_id })}
-                >
-                  <Text style={[styles.outlineBtnText, { fontSize: 12 }]}>
-                    לעמוד המסעדה
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.outlineBtnAccent, { paddingVertical: 8, paddingHorizontal: 12 }]}
-                  onPress={() => handleOpenModal(item)}
-                >
-                  <Text style={[styles.outlineBtnAccentText, { fontSize: 12 }]}>
-                    הוסף דירוג
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
+            {/* Row 1 (Top Text): Right aligned, paddingRight: 40 for Rank Tag space */}
+            <View style={{ alignItems: 'flex-end', paddingRight: 40, width: '100%' }}>
+              <Text style={[styles.cardTitle, { fontSize: 20, color: '#FFFFFF', textAlign: 'right' }]} numberOfLines={2}>
+                {item.business_name} | {item.city_name}
+              </Text>
+              <Text style={[styles.cardAddress, { fontSize: 14, color: '#A0A0A5', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
+                {item.address || 'כתובת לא הוזנה'}
+              </Text>
+              <Text style={[styles.cardReviews, { fontSize: 12, color: '#6E6E73', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
+                דורג ע"י {item.review_count || 0} אנשים
+              </Text>
             </View>
+
+            {/* Row 2 (Central Visuals): Dish Image on far right, Rating Pill on far left */}
+            <View style={{ 
+              flexDirection: 'row-reverse', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              marginTop: 16, 
+              width: '100%' 
+            }}>
+              {/* Far Right: Dish Image (visually sits lower than text) */}
+              <View style={[styles.photoPlaceholder, { width: 80, height: 80 }]}>
+                <MaterialIcons name="lunch-dining" size={28} color="#FF7F50" />
+              </View>
+
+              {/* Far Left: Rating Pill */}
+              <View style={[styles.ratingBadge, { 
+                paddingVertical: 8, 
+                paddingHorizontal: 16, 
+                borderRadius: 20, 
+                alignSelf: 'center' 
+              }]}>
+                <Text style={[styles.ratingBadgeText, { fontSize: 16 }]}>
+                  ★ {item.weighted_score.toFixed(1)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Row 3 (Actions): Vertically stacked buttons underneath Row 2 */}
+            <View style={{
+              flexDirection: 'column',
+              width: '100%',
+              marginTop: 16,
+              gap: 10,
+            }}>
+              <TouchableOpacity 
+                style={[styles.outlineBtnAccent, { width: '100%', paddingVertical: 10, borderRadius: 8 }]}
+                onPress={() => handleOpenModal(item)}
+              >
+                <Text style={[styles.outlineBtnAccentText, { fontSize: 14, textAlign: 'center' }]}>
+                  הוסף דירוג
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.outlineBtn, { width: '100%', paddingVertical: 10, borderRadius: 8 }]}
+                onPress={() => navigation.navigate('BusinessProfile', { businessId: item.business_id })}
+              >
+                <Text style={[styles.outlineBtnText, { fontSize: 14, textAlign: 'center' }]}>
+                  לעמוד המסעדה
+                </Text>
+              </TouchableOpacity>
+            </View>
+
           </View>
         </Animated.View>
       );

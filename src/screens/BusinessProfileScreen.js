@@ -63,19 +63,67 @@ export default function BusinessProfileScreen({ route, navigation }) {
       }
       setBusinessData(business);
 
-      // 2. Fetch Dishes ordered by avg_rating DESC
+      // 2. Fetch all dishes in the database to calculate category-based global averages (C)
+      const { data: allDishes, error: allDishesErr } = await supabase
+        .from('dishes')
+        .select('avg_rating, category_id');
+
+      if (allDishesErr) {
+        console.error('Fetch All Dishes Error:', allDishesErr);
+        throw allDishesErr;
+      }
+
+      // Compute C (global average) for each category
+      const categoryAverages = {};
+      if (allDishes && allDishes.length > 0) {
+        const categoryGroups = {};
+        allDishes.forEach(d => {
+          const catId = d.category_id;
+          if (!categoryGroups[catId]) {
+            categoryGroups[catId] = { sum: 0, count: 0 };
+          }
+          categoryGroups[catId].sum += (d.avg_rating || 0);
+          categoryGroups[catId].count += 1;
+        });
+
+        Object.keys(categoryGroups).forEach(catId => {
+          const group = categoryGroups[catId];
+          categoryAverages[catId] = group.count > 0 ? group.sum / group.count : 4.0;
+        });
+      }
+
+      // 3. Fetch Dishes belonging to the current business
       const { data: dishesData, error: dishesErr } = await supabase
         .from('dishes')
-        .select('id, name, avg_rating, review_count')
-        .eq('business_id', businessId)
-        .order('avg_rating', { ascending: false });
+        .select('id, name, avg_rating, review_count, category_id')
+        .eq('business_id', businessId);
 
       if (dishesErr) {
         console.error('Fetch Dishes Error:', dishesErr);
         throw dishesErr;
       }
-      setDishes(dishesData || []);
+
+      // 4. Compute Bayesian Average (Weighted Smart Score) for each dish of this restaurant
+      // Formula: W = (R * v + C * m) / (v + m)
+      const m = 10; // minimum votes threshold (BAYESIAN_M)
+      const formattedDishes = (dishesData || []).map(d => {
+        const R = d.avg_rating || 0;
+        const v = d.review_count || 0;
+        const C = categoryAverages[d.category_id] !== undefined ? categoryAverages[d.category_id] : 4.0;
+        const weighted_score = (R * v + C * m) / (v + m);
+
+        return {
+          ...d,
+          weighted_score,
+        };
+      });
+
+      // Sort strictly by smart score in DESCENDING order
+      formattedDishes.sort((a, b) => b.weighted_score - a.weighted_score);
+      setDishes(formattedDishes);
+
     } catch (err) {
+      console.error(err);
       setError('שגיאה בטעינת הנתונים מהשרת');
     } finally {
       setLoading(false);
@@ -100,9 +148,11 @@ export default function BusinessProfileScreen({ route, navigation }) {
           <Text style={styles.reviewCount}>דורג ע"י {item.review_count || 0} אנשים</Text>
         </View>
 
-        {/* 3. Far Left (third in row-reverse): Rating Badge */}
+        {/* 3. Far Left (third in row-reverse): Rating Badge using Smart Score */}
         <View style={styles.ratingPill}>
-          <Text style={styles.ratingText}>★ {item.avg_rating ? item.avg_rating.toFixed(1) : '0.0'}</Text>
+          <Text style={styles.ratingText}>
+            ★ {item.weighted_score ? item.weighted_score.toFixed(1) : '0.0'}
+          </Text>
         </View>
       </View>
     );
@@ -118,15 +168,15 @@ export default function BusinessProfileScreen({ route, navigation }) {
       ? `${businessData.address}, ${businessData.cities?.name || ''}`
       : businessData.cities?.name || 'עיר לא ידועה';
 
-    // Calculate Overall Restaurant Rating dynamically based on dish average scores
-    const validDishes = dishes.filter(d => d.avg_rating !== null && d.avg_rating !== undefined);
+    // Recalculate Overall Restaurant Rating based on dynamic SMART scores
+    const validDishes = dishes.filter(d => d.weighted_score !== null && d.weighted_score !== undefined);
     const overallRating = validDishes.length > 0
-      ? (validDishes.reduce((sum, d) => sum + d.avg_rating, 0) / validDishes.length).toFixed(1)
+      ? (validDishes.reduce((sum, d) => sum + d.weighted_score, 0) / validDishes.length).toFixed(1)
       : '0.0';
 
     return (
       <View>
-        {/* Custom Header with Back Button (Directly inline, matching Profile Screen header perfectly) */}
+        {/* Custom Header with Back Button */}
         <View style={styles.topHeader}>
           <TouchableOpacity 
             onPress={handleGoBack} 
