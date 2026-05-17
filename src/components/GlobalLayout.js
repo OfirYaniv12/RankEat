@@ -256,8 +256,6 @@ export default function GlobalLayout({ children }) {
         <View style={styles.headerLeft}>
           {user ? (
             <View style={{ flexDirection: 'row-reverse', alignItems: 'center' }}>
-              <Text style={styles.authText}>היי, {user.first_name}</Text>
-              <View style={{ width: SPACING.md }} />
               <TouchableOpacity style={styles.authBtn} onPress={() => navigation.navigate('Profile')}>
                 <Text style={styles.authText}>הפרופיל שלי</Text>
               </TouchableOpacity>

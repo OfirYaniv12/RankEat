@@ -22,7 +22,6 @@ export default function HomeScreen({ navigation }) {
 
   useEffect(() => {
     fetchStats();
-    // Pulsing glow on button
     Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, {
@@ -94,13 +93,23 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.ctaWrapper}>
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
             <TouchableOpacity
-              style={[styles.ctaButton, isMobile && { minWidth: 280, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.lg }]}
+              style={[
+                styles.ctaButton,
+                isMobile && { 
+                  minWidth: 280, 
+                  paddingHorizontal: SPACING.xl, 
+                  paddingVertical: SPACING.lg,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  alignSelf: 'center',
+                }
+              ]}
               onPress={() => navigation.navigate('CategorySelect')}
               onPressIn={handlePressIn}
               onPressOut={handlePressOut}
               activeOpacity={1}
             >
-              <Text style={[styles.ctaText, isMobile && { fontSize: 24 }]}>מה אוכלים? 🍽️</Text>
+              <Text style={[styles.ctaText, { textAlign: 'center' }, isMobile && { fontSize: 24 }]}>מה אוכלים? 🍽️</Text>
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -167,7 +176,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 15,
     elevation: 8,
-    borderRadius: RADIUS.pill, // Fix the weird rectangle shadow!
+    borderRadius: RADIUS.pill,
   },
   ctaButton: {
     backgroundColor: COLORS.accent,
@@ -175,12 +184,15 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     borderRadius: RADIUS.pill,
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    alignSelf: 'center',
   },
   ctaText: {
     fontFamily: FONTS.bold,
     fontSize: 28,
     color: '#FFF',
+    textAlign: 'center',
   },
   statsRow: {
     flexDirection: 'row-reverse',

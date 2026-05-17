@@ -177,7 +177,7 @@ export default function RankingsScreen({ navigation, route }) {
               </View>
             </View>
 
-            {/* Center Column: Text Info (flex: 1, flexShrink: 1 guarantees word wrapping) */}
+            {/* Center Column: Text Info (flex: 1, flexShrink: 1, minWidth: 80 guarantees word wrapping) */}
             <View style={styles.textSection}>
               <Text style={[styles.cardTitle, {
                 fontSize: isMobile ? 16 : 22,
@@ -212,17 +212,17 @@ export default function RankingsScreen({ navigation, route }) {
                 </Text>
               </View>
 
-              {/* Action Buttons row */}
-              <View style={styles.actionButtonRow}>
+              {/* Action Buttons row (flexDirection: 'row' strictly maintained, dynamic gap) */}
+              <View style={[styles.actionButtonRow, { gap: isMobile ? 4 : 10 }]}>
                 <TouchableOpacity 
                   style={[styles.outlineBtn, {
-                    paddingVertical: isMobile ? 6 : 10,
-                    paddingHorizontal: isMobile ? 8 : 16,
+                    paddingVertical: isMobile ? 4 : 10,
+                    paddingHorizontal: isMobile ? 6 : 16,
                   }]}
                   onPress={() => navigation.navigate('BusinessProfile', { businessId: item.business_id })}
                 >
                   <Text style={[styles.outlineBtnText, {
-                    fontSize: isMobile ? 12 : 15,
+                    fontSize: isMobile ? 11 : 15,
                   }]}>
                     לעמוד המסעדה
                   </Text>
@@ -230,13 +230,13 @@ export default function RankingsScreen({ navigation, route }) {
 
                 <TouchableOpacity 
                   style={[styles.outlineBtnAccent, {
-                    paddingVertical: isMobile ? 6 : 10,
-                    paddingHorizontal: isMobile ? 8 : 16,
+                    paddingVertical: isMobile ? 4 : 10,
+                    paddingHorizontal: isMobile ? 6 : 16,
                   }]}
                   onPress={() => handleOpenModal(item)}
                 >
                   <Text style={[styles.outlineBtnAccentText, {
-                    fontSize: isMobile ? 12 : 15,
+                    fontSize: isMobile ? 11 : 15,
                   }]}>
                     הוסף דירוג
                   </Text>
@@ -469,6 +469,7 @@ const styles = StyleSheet.create({
   textSection: {
     flex: 1,
     flexShrink: 1, // Explicit wrapping protection
+    minWidth: 80, // Prevent text being squished too far
     alignItems: 'flex-end',
     paddingHorizontal: 16,
   },
@@ -511,7 +512,6 @@ const styles = StyleSheet.create({
   },
   actionButtonRow: {
     flexDirection: 'row',
-    gap: 10,
     flexShrink: 0,
   },
   outlineBtn: {
