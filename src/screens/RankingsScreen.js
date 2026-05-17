@@ -146,24 +146,24 @@ export default function RankingsScreen({ navigation, route }) {
     if (isMobile) {
       return (
         <Animated.View style={[{ opacity: fadeAnim, width: '100%', maxWidth: 800, alignSelf: 'center' }, styles.cardWrapper]}>
-          {/* Card Container: position: relative, padding: 20, spacious feel */}
+          {/* Card Container: position: relative, padding: 16, compact height */}
           <View style={[styles.premiumCard, { 
             position: 'relative', 
             width: '100%', 
             flexDirection: 'column', 
-            padding: 20, 
+            padding: 16, 
             marginBottom: 16 
           }]}>
             
-            {/* Rank Circle as absolute overlay top-right */}
+            {/* Rank Circle absolute overlay top-right of card */}
             <View style={{
               position: 'absolute',
-              top: 12,
-              right: 12,
+              top: 8,
+              right: 8,
               zIndex: 10,
-              width: 32,
-              height: 32,
-              borderRadius: 16,
+              width: 28,
+              height: 28,
+              borderRadius: 14,
               backgroundColor: '#FF7F50',
               justifyContent: 'center',
               alignItems: 'center',
@@ -171,7 +171,7 @@ export default function RankingsScreen({ navigation, route }) {
               <Text style={{
                 color: '#FFFFFF',
                 fontFamily: FONTS.bold,
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: 'bold',
                 textAlign: 'center',
               }}>
@@ -179,51 +179,49 @@ export default function RankingsScreen({ navigation, route }) {
               </Text>
             </View>
 
-            {/* Row 1 (Top Text): Right aligned, paddingRight: 40 for Rank Tag space */}
-            <View style={{ alignItems: 'flex-end', paddingRight: 40, width: '100%' }}>
-              <Text style={[styles.cardTitle, { fontSize: 20, color: '#FFFFFF', textAlign: 'right' }]} numberOfLines={2}>
-                {item.business_name} | {item.city_name}
-              </Text>
-              <Text style={[styles.cardAddress, { fontSize: 14, color: '#A0A0A5', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
-                {item.address || 'כתובת לא הוזנה'}
-              </Text>
-              <Text style={[styles.cardReviews, { fontSize: 12, color: '#6E6E73', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
-                דורג ע"י {item.review_count || 0} אנשים
-              </Text>
-            </View>
-
-            {/* Row 2 (Central Visuals): Dish Image on far right, Rating Pill on far left */}
+            {/* Single main content row (flexDirection: 'row-reverse', alignItems: 'center') */}
             <View style={{ 
               flexDirection: 'row-reverse', 
               alignItems: 'center', 
-              justifyContent: 'space-between', 
-              marginTop: 16, 
-              width: '100%' 
+              width: '100%',
             }}>
-              {/* Far Right: Dish Image (visually sits lower than text) */}
-              <View style={[styles.photoPlaceholder, { width: 80, height: 80 }]}>
-                <MaterialIcons name="lunch-dining" size={28} color="#FF7F50" />
+              {/* Far Right: Dish Image (sits cleanly immediately below the absolute badge position) */}
+              <View style={[styles.photoPlaceholder, { width: 70, height: 70 }]}>
+                <MaterialIcons name="lunch-dining" size={24} color="#FF7F50" />
               </View>
 
-              {/* Far Left: Rating Pill */}
+              {/* Middle Column: Text Info (takes full flex space, aligned strictly right) */}
+              <View style={{ flex: 1, marginHorizontal: 12, alignItems: 'flex-end' }}>
+                <Text style={[styles.cardTitle, { fontSize: 18, color: '#FFFFFF', textAlign: 'right' }]} numberOfLines={2}>
+                  {item.business_name} | {item.city_name}
+                </Text>
+                <Text style={[styles.cardAddress, { fontSize: 14, color: '#A0A0A5', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
+                  {item.address || 'כתובת לא הוזנה'}
+                </Text>
+                <Text style={[styles.cardReviews, { fontSize: 12, color: '#6E6E73', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
+                  דורג ע"י {item.review_count || 0} אנשים
+                </Text>
+              </View>
+
+              {/* Far Left Column: Rating Badge (alignSelf: 'center' to match visual row) */}
               <View style={[styles.ratingBadge, { 
-                paddingVertical: 8, 
-                paddingHorizontal: 16, 
+                paddingVertical: 6, 
+                paddingHorizontal: 12, 
                 borderRadius: 20, 
                 alignSelf: 'center' 
               }]}>
-                <Text style={[styles.ratingBadgeText, { fontSize: 16 }]}>
+                <Text style={[styles.ratingBadgeText, { fontSize: 15 }]}>
                   ★ {item.weighted_score.toFixed(1)}
                 </Text>
               </View>
             </View>
 
-            {/* Row 3 (Actions): Vertically stacked buttons underneath Row 2 */}
+            {/* Actions Section: Stacked buttons vertically below with marginTop: 12 */}
             <View style={{
               flexDirection: 'column',
               width: '100%',
-              marginTop: 16,
-              gap: 10,
+              marginTop: 12,
+              gap: 8,
             }}>
               <TouchableOpacity 
                 style={[styles.outlineBtnAccent, { width: '100%', paddingVertical: 10, borderRadius: 8 }]}
