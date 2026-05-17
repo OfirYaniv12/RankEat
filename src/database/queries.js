@@ -124,6 +124,7 @@ export const getRankedDishes = async ({ categoryId, districtId, cityId }) => {
         review_count: v,
         weighted_score,
         business_name: d.businesses?.name || '—',
+        business_id: d.businesses?.id,
         address: d.businesses?.address || '',
         city_name: d.businesses?.cities?.name || '—',
       };

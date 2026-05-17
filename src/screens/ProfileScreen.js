@@ -13,6 +13,7 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +21,14 @@ import { supabase } from '../database/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { getCitiesByDistrict, getDistricts } from '../database/queries';
 import { COLORS, FONTS, RADIUS, SPACING } from '../theme';
+
+const showAlert = (title, message) => {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}: ${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
 
 export default function ProfileScreen() {
   const { user } = useAuth();
@@ -170,12 +179,14 @@ export default function ProfileScreen() {
     try {
       const { error } = await supabase.from('reviews').delete().eq('id', idToDelete);
       if (error) {
-        Alert.alert('שגיאה', error.message);
+        console.error('Delete review DB error:', error);
+        showAlert('שגיאה', error.message);
       } else {
         setReviews(prev => prev.filter(r => r.id !== idToDelete));
       }
     } catch (error) {
-      Alert.alert('שגיאה', 'מחיקת הדירוג נכשלה');
+      console.error('Delete review catch error:', error);
+      showAlert('שגיאה', 'מחיקת הדירוג נכשלה');
     } finally {
       setReviewToDelete(null);
     }
@@ -194,7 +205,8 @@ export default function ProfileScreen() {
       setReviews(prev => prev.map(r => r.id === editingReview.id ? { ...r, rating: parseFloat(editRating), comment: editComment } : r));
       setEditReviewVisible(false);
     } catch (error) {
-      Alert.alert('שגיאה', 'עדכון הדירוג נכשל');
+      console.error('Update review error:', error);
+      showAlert('שגיאה', 'עדכון הדירוג נכשל');
     } finally {
       setActionLoading(false);
     }
@@ -202,7 +214,7 @@ export default function ProfileScreen() {
 
   const handleUpdateProfile = async () => {
     if (!editFirstName.trim()) {
-      Alert.alert('שגיאה', 'אנא הזן שם פרטי');
+      showAlert('שגיאה', 'אנא הזן שם פרטי');
       return;
     }
     setActionLoading(true);
@@ -220,7 +232,8 @@ export default function ProfileScreen() {
       await fetchData();
       setEditProfileVisible(false);
     } catch (error) {
-      Alert.alert('שגיאה', 'עדכון הפרופיל נכשל');
+      console.error('Update profile error:', error);
+      showAlert('שגיאה', 'עדכון הפרופיל נכשל');
     } finally {
       setActionLoading(false);
     }
@@ -260,16 +273,20 @@ export default function ProfileScreen() {
         <TouchableOpacity 
           style={{ marginRight: 20 }}
           onPress={() => { setReviewToDelete(item.id); setDeleteConfirmVisible(true); }}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         >
           <MaterialIcons name="delete-outline" size={22} color="#FF5252" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => {
-          setEditingReview(item);
-          setEditRating(item.rating.toString());
-          setEditComment(item.comment || '');
-          setRatingError(false);
-          setEditReviewVisible(true);
-        }}>
+        <TouchableOpacity 
+          onPress={() => {
+            setEditingReview(item);
+            setEditRating(item.rating.toString());
+            setEditComment(item.comment || '');
+            setRatingError(false);
+            setEditReviewVisible(true);
+          }}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+        >
           <MaterialIcons name="edit" size={22} color="#64748B" />
         </TouchableOpacity>
       </View>

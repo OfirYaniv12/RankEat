@@ -3,21 +3,18 @@ import {
   View,
   Text,
   TouchableOpacity,
-  FlatList,
   ScrollView,
   StyleSheet,
   Animated,
   ActivityIndicator,
   StatusBar,
   Platform,
-  Dimensions,
   useWindowDimensions,
   Modal,
   TextInput,
   Alert,
 } from 'react-native';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { MaterialIcons } from '@expo/vector-icons';
 import { getRankedDishes, addReview } from '../database/queries';
 import { supabase } from '../database/supabaseClient';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
@@ -26,9 +23,6 @@ export default function RankingsScreen({ navigation, route }) {
   const { category, district, city } = route.params;
   const { width } = useWindowDimensions();
   
-  // Responsive proportional scale: Desktop baseline is 1024px.
-  // Scale down smoothly for smaller screens but clamp at 0.55 so mobile stays readable.
-  const scale = width > 1024 ? 1 : Math.max(width / 1024, 0.55);
   const isMobile = width < 768;
 
   const [dishes, setDishes] = useState([]);
@@ -75,21 +69,18 @@ export default function RankingsScreen({ navigation, route }) {
   };
 
   const handleRatingChange = (text) => {
-    // 1. Filter characters and handle dots
     let formatted = text.replace(/[^0-9.]/g, '');
     const parts = formatted.split('.');
     if (parts.length > 2) {
       formatted = parts[0] + '.' + parts.slice(1).join('');
     }
 
-    // 2. Prevent more than one decimal place
     if (parts.length === 2 && parts[1].length > 1) {
       formatted = parts[0] + '.' + parts[1].slice(0, 1);
     }
 
     setRatingInput(formatted);
 
-    // 3. Real-time validation (1-10)
     const val = parseFloat(formatted);
     if (formatted === '' || isNaN(val) || val < 1 || val > 10) {
       setRatingError(true);
@@ -112,7 +103,6 @@ export default function RankingsScreen({ navigation, route }) {
 
     setIsSubmitting(true);
     try {
-      // 1. Auth Guard: Check if user is logged in
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -121,30 +111,21 @@ export default function RankingsScreen({ navigation, route }) {
         } else {
           Alert.alert('התחברות דרושה', 'אתה חייב להיות מחובר כדי לדרג! אנא הירשם או התחבר.');
         }
-        // Here you would trigger setAuthModalVisible(true) once the UI is ready
         setIsSubmitting(false);
         return;
       }
 
-      // 2. Submit Review
       await addReview({ 
         dishId: selectedDish.id, 
         rating: val, 
         comment: commentInput 
       });
 
-      // 3. Success Flow
       setModalVisible(false);
       setRatingInput('');
       setCommentInput('');
       setLoading(true);
       await loadRankings();
-      
-      if (Platform.OS === 'web') {
-        // window.alert('הדירוג נשמר בהצלחה!');
-      } else {
-        // Alert.alert('תודה!', 'הדירוג שלך נשמר בהצלחה');
-      }
     } catch (e) {
       console.error('Save Rating Error:', e);
       const errorMsg = e.message || 'לא ניתן לשמור את הדירוג כעת';
@@ -158,130 +139,136 @@ export default function RankingsScreen({ navigation, route }) {
     }
   };
 
-  const renderStars = (rating) => {
-    const fullStars = Math.floor(rating);
-    const hasHalf = rating - fullStars >= 0.5;
-    let stars = '';
-    for (let i = 0; i < fullStars; i++) stars += '★';
-    if (hasHalf) stars += '½';
-    return stars;
-  };
-
   const renderDishItem = ({ item, index }) => {
     const rank = index + 1;
 
-    // Mobile specific sizing logic to ensure comfort and readability
-    const mobileRankScale = isMobile ? 0.6 : scale;
-    
-    let rankBoxSize = 50 * mobileRankScale;
-    let rankFontSize = 28 * mobileRankScale;
-    if (rank === 1) {
-      rankBoxSize = 75 * mobileRankScale;
-      rankFontSize = 46 * mobileRankScale;
-    } else if (rank === 2) {
-      rankBoxSize = 65 * mobileRankScale;
-      rankFontSize = 38 * mobileRankScale;
-    } else if (rank === 3) {
-      rankBoxSize = 55 * mobileRankScale;
-      rankFontSize = 32 * mobileRankScale;
-    }
+    // Mobile Responsive Layout: Top row handles rank, image, and text; Bottom row handles score and buttons
+    if (isMobile) {
+      return (
+        <Animated.View style={[{ opacity: fadeAnim }, styles.cardWrapper]}>
+          {/* Outer View wrapping both the extracted rank circle and the card container */}
+          <View style={styles.outerRowContainer}>
+            {/* Rank Circle on the FAR RIGHT */}
+            <View style={styles.rankBadgeCircle}>
+              <Text style={styles.rankBadgeText}>{rank}</Text>
+            </View>
 
-    return (
-      <Animated.View style={[{ opacity: fadeAnim }, styles.itemWrapper, { width: isMobile ? '98%' : '85%', transform: [{ translateX: isMobile ? 0 : 65 * scale }] }]}>
-        
-        {/* Rank Number Outside the Card */}
-        <View style={[styles.rankOuterContainer, { width: isMobile ? 45 : 80 * scale, marginLeft: isMobile ? 4 : SPACING.lg * scale }]}>
-          <View style={[styles.rankContainer, { width: rankBoxSize, height: rankBoxSize }]}>
-            <Text style={[styles.rankText, { fontSize: rankFontSize }]}>{rank}</Text>
-          </View>
-        </View>
+            {/* Main Card Container with flex: 1 */}
+            <View style={[styles.premiumCard, { flex: 1 }]}>
+              
+              {/* Top Row: Photo, and Text Info (Hebrew RTL flow) */}
+              <View style={styles.cardTopRow}>
+                {/* Image Placeholder */}
+                <View style={styles.photoPlaceholder}>
+                  <MaterialIcons name="lunch-dining" size={40} color="#FF7F50" />
+                </View>
 
-        <View style={[styles.squareCard, { 
-          flex: 1, // Restored flex: 1 so the card fills the available width properly!
-          height: isMobile ? 'auto' : 200 * scale, 
-          minHeight: isMobile ? 160 : 200 * scale,
-          padding: isMobile ? SPACING.lg : SPACING.md * scale 
-        }]}>
-          
-          {/* Right Column: Photo */}
-          <View style={[styles.photoPlaceholder, { 
-            width: isMobile ? 90 : 160 * scale, 
-            height: isMobile ? 90 : 160 * scale 
-          }]}>
-            <Text style={[styles.photoPlaceholderText, { fontSize: isMobile ? 14 : 16 * scale }]}>תמונה</Text>
-          </View>
-
-          {/* Center Column: Business Info */}
-          <View style={[styles.centerCol, isMobile && { alignItems: 'flex-end', justifyContent: 'center', paddingLeft: 0 }]}>
-            {item.city_name && item.city_name !== '—' ? (
-              isMobile ? (
-                <View style={{ alignItems: 'flex-end', width: '100%' }}>
-                  <Text style={[styles.businessName, { textAlign: 'right', fontSize: 22 }]} numberOfLines={2} adjustsFontSizeToFit>
-                    {item.business_name}
+                {/* Text Info (flexShrink configured for wrapping protection) */}
+                <View style={styles.textSection}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>
+                    {item.business_name} | {item.city_name}
                   </Text>
-                  <Text style={[styles.addressText, { textAlign: 'right', fontSize: 16, marginTop: 2, color: COLORS.accentLight }]} numberOfLines={1}>
-                    {item.city_name}
+                  <Text style={styles.cardAddress} numberOfLines={1}>
+                    {item.address || 'כתובת לא הוזנה'}
+                  </Text>
+                  <Text style={styles.cardReviews} numberOfLines={1}>
+                    דורג ע"י {item.review_count || 0} אנשים
                   </Text>
                 </View>
-              ) : (
-                <View style={styles.headlineRow}>
-                  <View style={styles.headlineHalf}>
-                    <Text style={[styles.businessName, { textAlign: 'right', fontSize: 40 * scale, marginTop: -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
-                      {item.city_name}
-                    </Text>
-                  </View>
-                  <Text style={[styles.businessName, { marginHorizontal: 6 * scale, fontSize: 40 * scale, marginTop: -8 * scale }]}>|</Text>
-                  <View style={styles.headlineHalf}>
-                    <Text style={[styles.businessName, { textAlign: 'left', fontSize: 40 * scale, marginTop: -8 * scale }]} numberOfLines={2} adjustsFontSizeToFit>
-                      {item.business_name}
-                    </Text>
-                  </View>
-                </View>
-              )
-            ) : (
-              <Text style={[styles.businessName, { fontSize: isMobile ? 22 : 40 * scale, marginTop: isMobile ? 0 : -8 * scale, textAlign: 'right' }]} numberOfLines={2} adjustsFontSizeToFit>
-                {item.business_name}
-              </Text>
-            )}
-            
-            <Text style={[styles.addressText, { fontSize: isMobile ? 14 : 18 * scale, marginTop: isMobile ? 6 : 36 * scale, textAlign: 'right' }]} numberOfLines={1}>
-              {item.address || 'כתובת לא הוזנה'}
-            </Text>
-            
-            {!isMobile && (
-              <Text style={[styles.reviewCount, { fontSize: 16 * scale, marginTop: 8 * scale }]}>{item.review_count} ביקורות</Text>
-            )}
+              </View>
 
-            {/* Mobile-Only: Rating & Action injected under the info! */}
-            {isMobile && (
-              <View style={[styles.mobileActionRow, { marginTop: 16 }]}>
+              {/* Bottom Row: Score on the right, Outlined Buttons on the left */}
+              <View style={styles.cardBottomRow}>
+                {/* Rating Pill */}
                 <View style={styles.ratingBadge}>
-                  <Text style={[styles.ratingBadgeText, { fontSize: 24 }]} numberOfLines={1}>
+                  <Text style={styles.ratingBadgeText}>
                     ★ {item.weighted_score.toFixed(1)}
                   </Text>
                 </View>
-                <Text style={styles.mobileReviewCount}>({item.review_count} דירוגים)</Text>
-                <TouchableOpacity style={styles.mobileAddReviewBtn} onPress={() => handleOpenModal(item)}>
-                  <Text style={styles.mobileAddReviewBtnText}>הוסף דירוג</Text>
-                </TouchableOpacity>
+
+                {/* Compact Flex Row of Action Buttons */}
+                <View style={styles.actionButtonRow}>
+                  <TouchableOpacity 
+                    style={styles.outlineBtn}
+                    onPress={() => navigation.navigate('BusinessProfile', { businessId: item.business_id })}
+                  >
+                    <Text style={styles.outlineBtnText}>לעמוד המסעדה</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={styles.outlineBtnAccent}
+                    onPress={() => handleOpenModal(item)}
+                  >
+                    <Text style={styles.outlineBtnAccentText}>הוסף דירוג</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            )}
+
+            </View>
+          </View>
+        </Animated.View>
+      );
+    }
+
+    // Desktop Responsive Layout: Seamless single row-reverse flow
+    return (
+      <Animated.View style={[{ opacity: fadeAnim }, styles.cardWrapper]}>
+        {/* Outer View wrapping both the extracted rank circle and the card container */}
+        <View style={styles.outerRowContainer}>
+          {/* Rank Circle on the FAR RIGHT */}
+          <View style={styles.rankBadgeCircle}>
+            <Text style={styles.rankBadgeText}>{rank}</Text>
           </View>
 
-          {/* Left Column: Rating & Action (Desktop Only) */}
-          {!isMobile && (
-            <View style={[styles.leftCol, { width: 140 * scale }]}>
-              <View style={[styles.ratingBadge, { marginBottom: SPACING.xl * scale }]}>
-                <Text style={[styles.ratingBadgeText, { fontSize: 24 * scale }]} numberOfLines={1}>
+          {/* Main Card Container with flex: 1 */}
+          <View style={[styles.premiumCard, { flex: 1 }]}>
+            
+            {/* Right Column (first in row-reverse): Image */}
+            <View style={styles.rightSection}>
+              <View style={styles.photoPlaceholder}>
+                <MaterialIcons name="lunch-dining" size={40} color="#FF7F50" />
+              </View>
+            </View>
+
+            {/* Center Column (second in row-reverse): Text Info */}
+            <View style={styles.textSection}>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {item.business_name} | {item.city_name}
+              </Text>
+              <Text style={styles.cardAddress} numberOfLines={1}>
+                {item.address || 'כתובת לא הוזנה'}
+              </Text>
+              <Text style={styles.cardReviews} numberOfLines={1}>
+                דורג ע"י {item.review_count || 0} אנשים
+              </Text>
+            </View>
+
+            {/* Left Column (third in row-reverse): Rating Badge & Grouped Action Buttons */}
+            <View style={styles.leftSection}>
+              <View style={styles.ratingBadge}>
+                <Text style={styles.ratingBadgeText}>
                   ★ {item.weighted_score.toFixed(1)}
                 </Text>
               </View>
-              <TouchableOpacity style={[styles.addReviewBtn, { paddingVertical: 12 * scale }]} onPress={() => handleOpenModal(item)}>
-                <Text style={[styles.addReviewBtnText, { fontSize: 16 * scale }]}>הוסף דירוג</Text>
-              </TouchableOpacity>
-            </View>
-          )}
 
+              <View style={styles.actionButtonRow}>
+                <TouchableOpacity 
+                  style={styles.outlineBtn}
+                  onPress={() => navigation.navigate('BusinessProfile', { businessId: item.business_id })}
+                >
+                  <Text style={styles.outlineBtnText}>לעמוד המסעדה</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.outlineBtnAccent}
+                  onPress={() => handleOpenModal(item)}
+                >
+                  <Text style={styles.outlineBtnAccentText}>הוסף דירוג</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+          </View>
         </View>
       </Animated.View>
     );
@@ -300,9 +287,8 @@ export default function RankingsScreen({ navigation, route }) {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <View style={[styles.headlineBanner, { width: isMobile ? '95%' : '80%', transform: [{ translateX: isMobile ? 0 : 13 * scale }] }]}>
-            <Text style={[styles.mainPageHeadline, { fontSize: isMobile ? 16 : 20 * scale }]}>{dynamicHeadline}</Text>
-
+          <View style={[styles.headlineBanner, { width: isMobile ? '95%' : '80%' }]}>
+            <Text style={[styles.mainPageHeadline, { fontSize: isMobile ? 16 : 20 }]}>{dynamicHeadline}</Text>
           </View>
         </View>
         <View style={{ width: 40 }} />
@@ -328,8 +314,8 @@ export default function RankingsScreen({ navigation, route }) {
       ) : (
         <ScrollView 
           style={{ flex: 1 }}
-          contentContainerStyle={[{ paddingBottom: 100, ...styles.listContent }, isMobile && { paddingHorizontal: 4 }]}
-          showsVerticalScrollIndicator={true} // Show scrollbar
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={true}
         >
           {dishes.map((item, index) => (
             <React.Fragment key={item.id.toString()}>
@@ -349,7 +335,6 @@ export default function RankingsScreen({ navigation, route }) {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, isMobile && styles.modalContentMobile]}>
-            {/* Close Button */}
             <TouchableOpacity style={styles.closeBtn} onPress={() => setModalVisible(false)}>
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
@@ -409,8 +394,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xl + 60, // Added space for global header
+    paddingTop: SPACING.xl + 60,
     paddingBottom: SPACING.md,
+    width: '100%',
   },
   backBtn: {
     width: 40,
@@ -438,154 +424,173 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     borderWidth: 1,
     borderColor: COLORS.accent, 
-    width: '80%', // Slightly wider than the white bullet to create a symmetrical canopy
     alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center', 
     marginBottom: SPACING.md,
-    transform: [{ translateX: 13 }], // Mathematically centers exactly over the white bullet!
   },
   mainPageHeadline: {
     fontFamily: FONTS.bold,
-    fontSize: 20, // Adjusted to fit nicely in the box
     color: COLORS.textPrimary,
     writingDirection: 'rtl',
     textAlign: 'center',
-  },
-  mainPageSubtitle: {
-    fontFamily: FONTS.regular,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    writingDirection: 'rtl',
-    marginTop: 4,
   },
   listContent: {
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xxl,
-  },
-  itemWrapper: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
+    width: '100%',
+    maxWidth: 900,
     alignSelf: 'center',
-    width: '85%', // Less wide (was taking full width, now constrained)
-    justifyContent: 'center',
-    transform: [{ translateX: 65 }], // Shifts the entire block right so the center column's | aligns with the screen center
   },
-  rankOuterContainer: {
-    width: 80, // Fixed width prevents the card from changing width when rank scales!
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: SPACING.lg, // Pushes the outer container (which holds the rank box) away from the card!
+  cardWrapper: {
+    width: '100%',
+    alignSelf: 'center',
   },
-  rankContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.accent, // Box!
-    borderRadius: 14,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  rankText: {
-    fontFamily: FONTS.bold,
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  squareCard: {
-    flex: 1,
+  outerRowContainer: {
     flexDirection: 'row-reverse',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md, // Restore internal padding
+    alignItems: 'center',
+    marginBottom: 20,
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
+  },
+  premiumCard: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 16,
+    padding: 20,
     borderWidth: 1,
-    borderColor: COLORS.textPrimary,
-    height: 200, // Fixed height ensures all bullets are exactly the same size!
-    alignItems: 'center', 
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardTopRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    width: '100%',
+  },
+  cardBottomRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  rightSection: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+  },
+  rankBadgeCircle: {
+    width: 44, // Enlarged to 44px
+    height: 44, // Enlarged to 44px
+    borderRadius: 22, // Sized for perfect circle
+    backgroundColor: 'rgba(255, 127, 80, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  rankBadgeText: {
+    color: '#FF7F50',
+    fontFamily: FONTS.bold,
+    fontSize: 20, // Scaled to 20px
+    fontWeight: 'bold', // Emphasized weight
+    textAlign: 'center',
   },
   photoPlaceholder: {
-    width: 160, // Perfect square
-    height: 160, // A bit less than the 200 height bullet
-    backgroundColor: COLORS.bg,
+    width: 110,
+    height: 110,
+    backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: COLORS.textPrimary,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: RADIUS.sm,
+    borderRadius: 8,
   },
-  photoPlaceholderText: {
+  textSection: {
+    flex: 1,
+    flexShrink: 1,
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+  },
+  cardTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 22,
+    color: '#FFFFFF',
+    textAlign: 'right',
+    flexShrink: 1,
+  },
+  cardAddress: {
     fontFamily: FONTS.regular,
     fontSize: 16,
-    color: COLORS.textPrimary,
+    color: '#A0A0A5',
+    textAlign: 'right',
+    marginTop: 6,
+    flexShrink: 1,
   },
-  centerCol: {
-    flex: 1,
-    paddingHorizontal: SPACING.md,
-    height: '100%',
+  cardReviews: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: '#6E6E73',
+    textAlign: 'right',
+    marginTop: 6,
+    flexShrink: 1,
+  },
+  leftSection: {
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    height: 110,
+  },
+  ratingBadge: {
+    backgroundColor: 'rgba(255, 127, 80, 0.15)',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
-  businessName: {
+  ratingBadgeText: {
+    color: '#FF7F50',
     fontFamily: FONTS.bold,
-    fontSize: 40, // True headline size
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-    marginTop: -8, // Push slightly up without breaking layout
+    fontSize: 18,
   },
-  headlineRow: {
+  actionButtonRow: {
     flexDirection: 'row',
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
   },
-  headlineHalf: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  addressText: {
-    fontFamily: FONTS.regular,
-    fontSize: 18, 
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-    marginTop: 36, // Push significantly lower!
-  },
-  reviewCount: {
-    fontFamily: FONTS.regular,
-    fontSize: 16, 
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-    marginTop: 8, // Directly under address
-  },
-  leftCol: {
-    alignItems: 'center',
-    justifyContent: 'center', // Keep them close to the center
-    width: 140, // Increased to prevent wrapping
-  },
-  ratingNumber: {
-    fontFamily: FONTS.bold,
-    fontSize: 34, 
-    color: '#FFD700', // Gold color for rating
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 1,
-    marginBottom: SPACING.xl, // Space between rating and button
-  },
-  addReviewBtn: {
+  outlineBtn: {
     borderWidth: 1,
-    borderColor: COLORS.textPrimary,
-    paddingVertical: 12, // Bigger button
-    paddingHorizontal: 8, 
-    borderRadius: 6,
-    backgroundColor: COLORS.surfaceHover,
-    width: '100%', 
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  addReviewBtnText: {
+  outlineBtnText: {
     fontFamily: FONTS.semibold,
-    fontSize: 16, // Bigger text
-    color: COLORS.textPrimary,
+    fontSize: 15,
+    color: '#A0A0A5',
+    textAlign: 'center',
+  },
+  outlineBtnAccent: {
+    borderWidth: 1,
+    borderColor: '#FF7F50',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outlineBtnAccentText: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: '#FF7F50',
     textAlign: 'center',
   },
   center: {
@@ -623,46 +628,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.textSecondary,
     writingDirection: 'rtl',
-    textAlign: 'center',
-  },
-  mobileActionRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: SPACING.md,
-  },
-  ratingBadge: {
-    backgroundColor: 'rgba(255, 127, 80, 0.15)',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-  },
-  ratingBadgeText: {
-    color: '#FF7F50',
-    fontWeight: 'bold',
-  },
-  mobileReviewCount: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  mobileAddReviewBtn: {
-    borderWidth: 1,
-    borderColor: COLORS.textPrimary,
-    paddingVertical: 6,
-    paddingHorizontal: 12, 
-    borderRadius: 6,
-    backgroundColor: COLORS.surfaceHover,
-  },
-  mobileAddReviewBtnText: {
-    fontFamily: FONTS.semibold,
-    fontSize: 13,
-    color: COLORS.textPrimary,
     textAlign: 'center',
   },
   modalOverlay: {
@@ -710,56 +675,54 @@ const styles = StyleSheet.create({
   ratingInput: {
     backgroundColor: COLORS.surface,
     color: COLORS.textPrimary,
-    fontFamily: FONTS.bold,
-    fontSize: 48,
-    textAlign: 'center',
-    width: 140,
-    paddingVertical: SPACING.md,
     borderRadius: RADIUS.md,
+    width: 100,
+    height: 60,
+    textAlign: 'center',
+    fontSize: 32,
+    fontFamily: FONTS.bold,
+    marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  errorTextSmall: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: '#FF6B6B',
     marginBottom: SPACING.md,
   },
   commentInput: {
     backgroundColor: COLORS.surface,
     color: COLORS.textPrimary,
-    fontFamily: FONTS.regular,
-    fontSize: 16,
+    borderRadius: RADIUS.md,
     width: '100%',
     height: 100,
     padding: SPACING.md,
-    borderRadius: RADIUS.sm,
+    fontSize: 16,
+    fontFamily: FONTS.regular,
+    textAlign: 'right',
+    marginBottom: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: SPACING.xl,
-    writingDirection: 'rtl',
-    textAlign: 'right',
   },
   saveBtn: {
     backgroundColor: COLORS.accent,
-    width: '100%',
-    paddingVertical: SPACING.md,
     borderRadius: RADIUS.md,
+    width: '100%',
+    height: 50,
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
   },
   saveBtnText: {
+    color: '#FFFFFF',
     fontFamily: FONTS.bold,
-    fontSize: 18,
-    color: '#FFF',
+    fontSize: 16,
   },
   modalNote: {
     fontFamily: FONTS.regular,
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: SPACING.md,
-  },
-  errorTextSmall: {
-    color: '#FF6B6B',
-    fontFamily: FONTS.regular,
-    fontSize: 14,
-    marginBottom: SPACING.md,
-    marginTop: -SPACING.sm,
   },
 });

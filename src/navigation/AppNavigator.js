@@ -4,6 +4,7 @@ import HomeScreen from '../screens/HomeScreen';
 import CategorySelectScreen from '../screens/CategorySelectScreen';
 import RankingsScreen from '../screens/RankingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import BusinessProfileScreen from '../screens/BusinessProfileScreen';
 
 const Stack = createStackNavigator();
 
@@ -21,6 +22,7 @@ export default function AppNavigator() {
       <Stack.Screen name="CategorySelect" component={CategorySelectScreen} />
       <Stack.Screen name="Rankings" component={RankingsScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="BusinessProfile" component={BusinessProfileScreen} />
     </Stack.Navigator>
   );
 }
