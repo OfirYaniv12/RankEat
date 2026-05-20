@@ -1,7 +1,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
-import CategorySelectScreen from '../screens/CategorySelectScreen';
+import SearchScreen from '../screens/SearchScreen';
 import RankingsScreen from '../screens/RankingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import BusinessProfileScreen from '../screens/BusinessProfileScreen';
@@ -19,7 +19,7 @@ export default function AppNavigator() {
       }}
     >
       <Stack.Screen name="Home" component={HomeScreen} />
-      <Stack.Screen name="CategorySelect" component={CategorySelectScreen} />
+      <Stack.Screen name="CategorySelect" component={SearchScreen} />
       <Stack.Screen name="Rankings" component={RankingsScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="BusinessProfile" component={BusinessProfileScreen} />

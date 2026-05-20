@@ -272,3 +272,209 @@ export const getHomeStats = async () => {
     reviews: reviewsRes.count || 0,
   };
 };
+
+// ─── RANKED RESTAURANTS (Unified Restaurant Search) ──────────────────────────
+export const getRankedRestaurants = async ({ nameQuery, locationQuery, selectedCategoryIds, userCityId, userDistrictId }) => {
+  console.log('getRankedRestaurants inputs:', { nameQuery, locationQuery, selectedCategoryIds, userCityId, userDistrictId });
+
+  // 1. Fetch all businesses, along with their city/district/dishes
+  const { data: businesses, error } = await supabase
+    .from('businesses')
+    .select(`
+      id,
+      name,
+      address,
+      city_id,
+      district_id,
+      cities (
+        id,
+        name
+      ),
+      districts (
+        id,
+        name
+      ),
+      dishes (
+        id,
+        name,
+        avg_rating,
+        review_count,
+        category_id
+      )
+    `);
+
+  if (error) {
+    console.error('getRankedRestaurants fetch error:', error);
+    throw new Error(`getRankedRestaurants: ${error.message}`);
+  }
+  
+  if (!businesses || businesses.length === 0) return [];
+
+  // 2. Gather all dishes in the database to calculate category averages (C)
+  const allDishes = [];
+  businesses.forEach(b => {
+    if (b.dishes) {
+      b.dishes.forEach(d => {
+        allDishes.push(d);
+      });
+    }
+  });
+
+  const categoryAverages = {};
+  const categoryGroups = {};
+  allDishes.forEach(d => {
+    const catId = d.category_id;
+    if (!categoryGroups[catId]) {
+      categoryGroups[catId] = { sum: 0, count: 0 };
+    }
+    categoryGroups[catId].sum += (d.avg_rating || 0);
+    categoryGroups[catId].count += 1;
+  });
+
+  Object.keys(categoryGroups).forEach(catId => {
+    const group = categoryGroups[catId];
+    categoryAverages[catId] = group.count > 0 ? group.sum / group.count : 4.0;
+  });
+
+  const m = BAYESIAN_M;
+
+  // 3. Compute dynamic Smart Score for each business
+  let formattedBusinesses = businesses.map(b => {
+    let dishScoresSum = 0;
+    let validDishesCount = 0;
+    let totalReviews = 0;
+
+    if (b.dishes && b.dishes.length > 0) {
+      b.dishes.forEach(d => {
+        const R = d.avg_rating || 0;
+        const v = d.review_count || 0;
+        const C = categoryAverages[d.category_id] !== undefined ? categoryAverages[d.category_id] : 4.0;
+        const weighted_score = (R * v + C * m) / (v + m);
+        
+        dishScoresSum += weighted_score;
+        validDishesCount += 1;
+        totalReviews += v;
+      });
+    }
+
+    const smartScore = validDishesCount > 0 ? (dishScoresSum / validDishesCount) : 0.0;
+
+    return {
+      id: b.id,
+      name: b.name,
+      address: b.address,
+      city_id: b.city_id,
+      district_id: b.district_id,
+      city_name: b.cities?.name || '—',
+      district_name: b.districts?.name || '—',
+      smart_score: smartScore,
+      review_count: totalReviews,
+      dishes: b.dishes || [],
+    };
+  });
+
+  // 4. Apply Category Multi-select Filter
+  if (selectedCategoryIds && selectedCategoryIds.length > 0) {
+    formattedBusinesses = formattedBusinesses.filter(b => {
+      return b.dishes.some(d => selectedCategoryIds.includes(d.category_id));
+    });
+  }
+
+  // 5. Apply Name Search Filter (Only keep partial/exact name matches if name query is filled)
+  if (nameQuery && nameQuery.trim().length > 0) {
+    const nameLower = nameQuery.trim().toLowerCase();
+    formattedBusinesses = formattedBusinesses.filter(b => b.name?.toLowerCase().includes(nameLower));
+  }
+
+  // 6. Apply Location Filter and Sorting Scenarios
+  const hasTypedLocation = locationQuery && locationQuery.trim().length > 0;
+  const nameQueryTrimmed = nameQuery ? nameQuery.trim().toLowerCase() : '';
+
+  if (hasTypedLocation) {
+    // --- SCENARIO A: Location is manually typed ---
+    const locLower = locationQuery.trim().toLowerCase();
+    
+    // Filter strictly by the typed location
+    formattedBusinesses = formattedBusinesses.filter(b => {
+      const cityMatch = b.city_name?.toLowerCase().includes(locLower);
+      const addressMatch = b.address?.toLowerCase().includes(locLower);
+      return cityMatch || addressMatch;
+    });
+
+    // Sort order: 1. Exact Name match -> 2. Partial Name match -> 3. Highest Smart Score
+    formattedBusinesses.sort((a, b) => {
+      const nameA = a.name.trim().toLowerCase();
+      const nameB = b.name.trim().toLowerCase();
+
+      if (nameQueryTrimmed) {
+        const isExactA = nameA === nameQueryTrimmed;
+        const isExactB = nameB === nameQueryTrimmed;
+        if (isExactA && !isExactB) return -1;
+        if (!isExactA && isExactB) return 1;
+
+        const isPartialA = nameA.includes(nameQueryTrimmed);
+        const isPartialB = nameB.includes(nameQueryTrimmed);
+        if (isPartialA && !isPartialB) return -1;
+        if (!isPartialA && isPartialB) return 1;
+      }
+
+      return b.smart_score - a.smart_score;
+    });
+
+  } else {
+    // --- SCENARIOS B & C: Location is empty ---
+    if (userDistrictId) {
+      // Filter strictly by user region (district_id)
+      formattedBusinesses = formattedBusinesses.filter(b => b.district_id === userDistrictId);
+    }
+
+    if (nameQueryTrimmed) {
+      // --- SCENARIO B: Contextual Fallback with Name ---
+      const getPriority = (item) => {
+        const inUserCity = userCityId && item.city_id === userCityId;
+        const inRegion = userDistrictId && item.district_id === userDistrictId;
+        const restaurantName = item.name.trim().toLowerCase();
+        
+        const isExact = restaurantName === nameQueryTrimmed;
+        const isPartial = restaurantName.includes(nameQueryTrimmed) && !isExact;
+
+        if (inUserCity) {
+          if (isExact) return 1;
+          if (isPartial) return 2;
+          return 3;
+        } else if (inRegion) {
+          if (isExact) return 4;
+          if (isPartial) return 5;
+          return 6;
+        }
+        return 7;
+      };
+
+      formattedBusinesses.sort((a, b) => {
+        const priorityA = getPriority(a);
+        const priorityB = getPriority(b);
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        return b.smart_score - a.smart_score;
+      });
+
+    } else {
+      // --- SCENARIO C: Completely Blind Search (No Name, No Location) ---
+      // Sort strictly by Highest Smart Score, prioritizing restaurants in the User's specific City first, followed by the rest of the Region.
+      formattedBusinesses.sort((a, b) => {
+        const inUserCityA = userCityId && a.city_id === userCityId;
+        const inUserCityB = userCityId && b.city_id === userCityId;
+
+        if (inUserCityA && !inUserCityB) return -1;
+        if (!inUserCityA && inUserCityB) return 1;
+
+        return b.smart_score - a.smart_score;
+      });
+    }
+  }
+
+  console.log(`getRankedRestaurants returning ${formattedBusinesses.length} results`);
+  return formattedBusinesses;
+};
+

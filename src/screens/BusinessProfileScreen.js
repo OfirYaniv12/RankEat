@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../database/supabaseClient';
@@ -16,6 +17,8 @@ import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 
 export default function BusinessProfileScreen({ route, navigation }) {
   const { businessId } = route.params || {};
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
 
   const [businessData, setBusinessData] = useState(null);
   const [dishes, setDishes] = useState([]);
@@ -130,16 +133,45 @@ export default function BusinessProfileScreen({ route, navigation }) {
     }
   };
 
+  // --- Dynamic Medal Badge Styling Helper ---
+  const getRankBadgeColor = (rank) => {
+    if (rank === 1) return COLORS.gold || '#FFD700';
+    if (rank === 2) return COLORS.silver || '#C0C0C0';
+    if (rank === 3) return COLORS.bronze || '#CD7F32';
+    return 'rgba(255, 255, 255, 0.15)'; // Default subtle circle
+  };
+
+  const getRankTextColor = (rank) => {
+    if (rank <= 3) return '#0D0F14';
+    return '#A0A0A5';
+  };
+
   // Aggregated Statistics
   const totalDishes = dishes.length;
   const totalReviews = dishes.reduce((sum, dish) => sum + (dish.review_count || 0), 0);
 
-  const renderDishItem = ({ item }) => {
+  const renderDishItem = ({ item, index }) => {
+    const rank = index + 1;
+    const badgeBg = getRankBadgeColor(rank);
+    const badgeText = getRankTextColor(rank);
+
     return (
-      <View style={styles.cardContainer}>
-        {/* 1. Far Right (first in row-reverse): Image Placeholder */}
-        <View style={styles.dishImageContainer}>
-          <MaterialIcons name="lunch-dining" size={40} color="#FF7F50" />
+      <View style={[
+        styles.cardContainer,
+        rank <= 3 && {
+          borderColor: badgeBg + '33',
+          borderWidth: 1.5,
+        }
+      ]}>
+        {/* 1. Far Right (first in row-reverse): Image Placeholder with Rank badge */}
+        <View style={styles.dishImageWrapper}>
+          <View style={styles.dishImageContainer}>
+            <MaterialIcons name="lunch-dining" size={40} color="#FF7F50" />
+          </View>
+          {/* Rank Badge Overlay */}
+          <View style={[styles.dishRankOverlay, { backgroundColor: badgeBg }]}>
+            <Text style={[styles.dishRankOverlayText, { color: badgeText }]}>{rank}</Text>
+          </View>
         </View>
 
         {/* 2. Middle (second in row-reverse): Text Info */}
@@ -175,12 +207,13 @@ export default function BusinessProfileScreen({ route, navigation }) {
       : '0.0';
 
     return (
-      <View>
+      <View style={{ zIndex: 10 }}>
         {/* Custom Header with Back Button */}
         <View style={styles.topHeader}>
           <TouchableOpacity 
             onPress={handleGoBack} 
             style={styles.backBtn}
+            activeOpacity={0.7}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           >
             <Text style={styles.backIcon}>←</Text>
@@ -263,10 +296,14 @@ export default function BusinessProfileScreen({ route, navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
+      {/* Decorative premium backdrop circles */}
+      <View style={[styles.circle1, isMobile && styles.circle1Mobile]} />
+      <View style={[styles.circle2, isMobile && styles.circle2Mobile]} />
+
       <FlatList
         data={dishes}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={renderDishItem}
+        renderItem={({ item, index }) => renderDishItem({ item, index })}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContent}
         style={styles.flatList}
@@ -284,6 +321,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bg,
+    overflow: 'hidden',
   },
   loadingContainer: {
     flex: 1,
@@ -309,6 +347,7 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xl + 60,
     paddingBottom: SPACING.md,
     width: '100%',
+    zIndex: 10,
   },
   backBtn: {
     width: 40,
@@ -445,6 +484,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 40,
     width: '100%',
+    zIndex: 10,
   },
   cardContainer: {
     backgroundColor: '#1C1C1E',
@@ -459,6 +499,14 @@ const styles = StyleSheet.create({
     width: '90%',
     maxWidth: 800,
     alignSelf: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  dishImageWrapper: {
+    position: 'relative',
   },
   dishImageContainer: {
     width: 80,
@@ -469,6 +517,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  dishRankOverlay: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  dishRankOverlayText: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   textInfo: {
     flex: 1,
@@ -529,5 +597,39 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: FONTS.bold,
     fontSize: 14,
+  },
+  circle1: {
+    position: 'absolute',
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    backgroundColor: COLORS.accent + '10',
+    top: -80,
+    right: -100,
+    zIndex: 0,
+  },
+  circle1Mobile: {
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    top: -50,
+    right: -60,
+  },
+  circle2: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: COLORS.accentSecondary + '08',
+    bottom: -50,
+    left: -80,
+    zIndex: 0,
+  },
+  circle2Mobile: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    bottom: -30,
+    left: -50,
   },
 });
