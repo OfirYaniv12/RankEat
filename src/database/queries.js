@@ -248,10 +248,27 @@ export const getProfile = async (userId) => {
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
-  return data;
+  return data; // returns null if no row exists (new Google user)
+};
+
+export const upsertProfile = async (userId, fields) => {
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({ id: userId, ...fields }, { onConflict: 'id' });
+
+  if (error) throw error;
+};
+
+export const updateProfile = async (userId, fields) => {
+  const { error } = await supabase
+    .from('profiles')
+    .update(fields)
+    .eq('id', userId);
+
+  if (error) throw error;
 };
 
 // ─── STATISTICS ──────────────────────────────────────────────────────────────
