@@ -18,6 +18,7 @@ import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import { signUpUser, getProfile, getDistricts, getCitiesByDistrict } from '../database/queries';
 import { supabase } from '../database/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { AntDesign } from '@expo/vector-icons';
 
 export default function GlobalLayout({ children }) {
   const { user, setUser } = useAuth();
@@ -164,6 +165,24 @@ export default function GlobalLayout({ children }) {
       setAuthError(e.message || 'שגיאה בתהליך ההתחברות');
     } finally {
       setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'https://rank-eat-beta.vercel.app/'
+        }
+      });
+      if (error) throw error;
+      
+      closeLoginModal();
+      setSignUpModalVisible(false);
+    } catch (e) {
+      console.error('Google Login error:', e);
+      setAuthError(e.message || 'שגיאה בהתחברות עם גוגל');
     }
   };
 
@@ -392,6 +411,21 @@ export default function GlobalLayout({ children }) {
               >
                 <Text style={styles.submitBtnText}>{isSubmittingAuth ? 'שומר...' : 'הרשמה'}</Text>
               </TouchableOpacity>
+
+              <View style={styles.authDivider}>
+                <View style={styles.authDividerLine} />
+                <Text style={styles.authDividerText}>או</Text>
+                <View style={styles.authDividerLine} />
+              </View>
+
+              <TouchableOpacity 
+                style={styles.googleBtn} 
+                onPress={handleGoogleLogin}
+              >
+                <AntDesign name="google" size={20} style={styles.googleIcon} />
+                <Text style={styles.googleBtnText}>המשך עם Google</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity style={styles.switchAuth} onPress={switchToLogin}>
                 <Text style={styles.switchAuthText}>כבר יש לך חשבון? להתחברות</Text>
               </TouchableOpacity>
@@ -446,6 +480,21 @@ export default function GlobalLayout({ children }) {
               >
                 <Text style={styles.submitBtnText}>{isSubmittingAuth ? 'מתחבר...' : 'התחברות'}</Text>
               </TouchableOpacity>
+
+              <View style={styles.authDivider}>
+                <View style={styles.authDividerLine} />
+                <Text style={styles.authDividerText}>או</Text>
+                <View style={styles.authDividerLine} />
+              </View>
+
+              <TouchableOpacity 
+                style={styles.googleBtn} 
+                onPress={handleGoogleLogin}
+              >
+                <AntDesign name="google" size={20} style={styles.googleIcon} />
+                <Text style={styles.googleBtnText}>התחבר עם Google</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity style={styles.switchAuth} onPress={switchToSignUp}>
                 <Text style={styles.switchAuthText}>עדיין לא רשום? להרשמה</Text>
               </TouchableOpacity>
@@ -720,5 +769,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     textDecorationLine: 'underline',
+  },
+  authDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.md,
+  },
+  authDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  authDividerText: {
+    color: COLORS.textSecondary,
+    paddingHorizontal: SPACING.md,
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+  },
+  googleBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingVertical: 14,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+  },
+  googleIcon: {
+    marginLeft: 12,
+    color: '#FFFFFF',
+  },
+  googleBtnText: {
+    color: '#FFFFFF',
+    fontFamily: FONTS.bold,
+    fontSize: 16,
   },
 });
