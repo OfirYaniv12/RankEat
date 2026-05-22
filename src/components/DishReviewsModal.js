@@ -107,10 +107,18 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     return [first, last].filter(Boolean).join(' ') || 'אנונימי';
   };
 
+  const getRankNickname = (trustScore) => {
+    if (trustScore >= 3) return 'מבקר מישלן';
+    if (trustScore >= 2) return 'טורף על';
+    if (trustScore >= 1.5) return 'גרגרן מוסמך';
+    return 'טועם מתחיל';
+  };
+
   const renderReviewItem = ({ item, index }) => {
     const name = formatReviewerName(item.profiles);
     const date = formatDate(item.created_at);
     const trustScore = item.profiles?.trust_score ?? 0;
+    const rankNickname = getRankNickname(trustScore);
 
     // Trust tier icon: top reviewers get a small badge
     let tierIcon = null;
@@ -120,19 +128,21 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
 
     return (
       <View style={[styles.reviewCard, index === 0 && styles.reviewCardFirst]}>
-        {/* Header row */}
+        {/* Header row: Spread out without stacking */}
         <View style={styles.reviewHeader}>
+          {/* Right: name + tier icon + rank nickname */}
+          <View style={styles.reviewerInfo}>
+            <Text style={styles.reviewerName} numberOfLines={1}>
+              {tierIcon ? `${tierIcon} ` : ''}{name} <Text style={styles.rankNickname}>({rankNickname})</Text>
+            </Text>
+          </View>
+
+          {/* Middle: date */}
+          <Text style={styles.reviewDate}>{date}</Text>
+
           {/* Left: rating pill */}
           <View style={styles.ratingPill}>
             <Text style={styles.ratingPillText}>★ {item.rating.toFixed(1)}</Text>
-          </View>
-
-          {/* Right: name + tier icon + date */}
-          <View style={styles.reviewerInfo}>
-            <Text style={styles.reviewerName}>
-              {tierIcon ? `${tierIcon} ` : ''}{name}
-            </Text>
-            <Text style={styles.reviewDate}>{date}</Text>
           </View>
         </View>
 
@@ -172,9 +182,9 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
                 <Text style={styles.closeBtnText}>✕</Text>
               </TouchableOpacity>
 
-              {/* Dish name */}
+              {/* Dish and Restaurant name */}
               <Text style={styles.dishName} numberOfLines={2}>
-                {dish?.name || ''}
+                {dish?.name || ''}{dish?.business_name ? ` - ${dish.business_name}` : ''}
               </Text>
 
               {/* Overall score badge */}
@@ -233,8 +243,7 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
                 onPress={() => setRatingFormVisible(true)}
                 activeOpacity={0.8}
               >
-                <MaterialIcons name="star-rate" size={18} color="#FFF" style={{ marginLeft: 8 }} />
-                <Text style={styles.writeReviewBtnText}>כתוב ביקורת</Text>
+                <Text style={styles.writeReviewBtnText}>דרג בעצמך</Text>
               </TouchableOpacity>
             </View>
 
@@ -368,7 +377,7 @@ const styles = StyleSheet.create({
   reviewCard: {
     backgroundColor: COLORS.bg,
     borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
+    padding: SPACING.xl,
     marginTop: SPACING.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
@@ -380,25 +389,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   reviewerInfo: {
     alignItems: 'flex-end',
-    flex: 1,
+    flexShrink: 1,
     marginLeft: SPACING.md,
   },
   reviewerName: {
     fontFamily: FONTS.bold,
-    fontSize: 15,
+    fontSize: 16,
     color: COLORS.textPrimary,
     textAlign: 'right',
   },
+  rankNickname: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: COLORS.accent,
+  },
   reviewDate: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.textSecondary,
-    textAlign: 'right',
-    marginTop: 2,
+    marginHorizontal: SPACING.md,
   },
   ratingPill: {
     backgroundColor: 'rgba(255, 107, 53, 0.15)',

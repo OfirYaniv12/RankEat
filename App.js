@@ -7,6 +7,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import GlobalLayout from './src/components/GlobalLayout';
 
 import { NavigationContainer } from '@react-navigation/native';
+import { navigationRef } from './src/navigation/navigationRef';
 
 // GestureHandlerRootView is native-only; skip it on web
 let GestureHandlerRootView;
@@ -54,7 +55,7 @@ export default function App() {
   return (
     <AuthProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <GlobalLayout>
             <AppNavigator />
           </GlobalLayout>

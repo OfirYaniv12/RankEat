@@ -149,7 +149,7 @@ export default function BusinessProfileScreen({ route, navigation }) {
   };
 
   const handleOpenReviews = (dish) => {
-    setReviewsDish(dish);
+    setReviewsDish({ ...dish, business_name: businessData?.name });
     setReviewsModalVisible(true);
   };
 

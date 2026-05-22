@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { navigationRef, navigate } from '../navigation/navigationRef';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import { signUpUser, getProfile, getDistricts, getCitiesByDistrict } from '../database/queries';
 import { supabase } from '../database/supabaseClient';
@@ -22,7 +22,6 @@ import { AntDesign } from '@expo/vector-icons';
 export default function GlobalLayout({ children }) {
   const { user, setUser } = useAuth();
   const { width } = useWindowDimensions();
-  const navigation = useNavigation();
   const isMobile = width < 768;
 
   // Auth State
@@ -252,7 +251,7 @@ export default function GlobalLayout({ children }) {
         <View style={styles.headerLeft}>
           {user ? (
             <View style={{ flexDirection: 'row-reverse', alignItems: 'center' }}>
-              <TouchableOpacity style={styles.authBtn} onPress={() => navigation.navigate('Profile')}>
+              <TouchableOpacity style={styles.authBtn} onPress={() => navigate('Profile')}>
                 <Text style={styles.authText}>הפרופיל שלי</Text>
               </TouchableOpacity>
               <View style={{ width: SPACING.md }} />
