@@ -8,16 +8,13 @@ import {
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
-  Platform,
-  Modal,
-  TextInput,
-  Alert,
   useWindowDimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../database/supabaseClient';
-import { addReview } from '../database/queries';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
+import RatingFormModal from '../components/RatingFormModal';
+import DishReviewsModal from '../components/DishReviewsModal';
 
 export default function BusinessProfileScreen({ route, navigation }) {
   const { businessId } = route.params || {};
@@ -29,13 +26,13 @@ export default function BusinessProfileScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Rating Modal State
-  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  // Unified rating form modal
+  const [ratingFormVisible, setRatingFormVisible] = useState(false);
   const [selectedDish, setSelectedDish] = useState(null);
-  const [ratingInput, setRatingInput] = useState('');
-  const [commentInput, setCommentInput] = useState('');
-  const [ratingError, setRatingError] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Dish reviews modal
+  const [reviewsModalVisible, setReviewsModalVisible] = useState(false);
+  const [reviewsDish, setReviewsDish] = useState(null);
 
   const handleGoBack = () => {
     if (navigation.canGoBack()) {
@@ -145,51 +142,15 @@ export default function BusinessProfileScreen({ route, navigation }) {
     }
   };
 
-  // ─── Rating Modal Handlers ────────────────────────────────────────────────
+  // ─── Modal Handlers ─────────────────────────────────────────────────────────
   const handleOpenRatingModal = (dish) => {
     setSelectedDish(dish);
-    setRatingInput('');
-    setCommentInput('');
-    setRatingError(false);
-    setRatingModalVisible(true);
+    setRatingFormVisible(true);
   };
 
-  const handleRatingChange = (text) => {
-    let formatted = text.replace(/[^0-9.]/g, '');
-    const parts = formatted.split('.');
-    if (parts.length > 2) formatted = parts[0] + '.' + parts.slice(1).join('');
-    if (parts.length === 2 && parts[1].length > 1) formatted = parts[0] + '.' + parts[1].slice(0, 1);
-    setRatingInput(formatted);
-    const val = parseFloat(formatted);
-    setRatingError(formatted === '' || isNaN(val) || val < 1 || val > 10);
-  };
-
-  const handleSaveRating = async () => {
-    const val = parseFloat(ratingInput);
-    if (isNaN(val) || val < 1 || val > 10) {
-      const msg = 'אנא הזן דירוג בין 1 ל-10';
-      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('שגיאה', msg);
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        const msg = 'אתה חייב להיות מחובר כדי לדרג!';
-        Platform.OS === 'web' ? window.alert(msg) : Alert.alert('התחברות דרושה', msg);
-        setIsSubmitting(false);
-        return;
-      }
-      await addReview({ dishId: selectedDish.id, rating: val, comment: commentInput });
-      setRatingModalVisible(false);
-      // Refresh dishes to show updated score
-      fetchBusinessAndDishes();
-    } catch (e) {
-      const errorMsg = e.message || 'לא ניתן לשמור את הדירוג כעת';
-      Platform.OS === 'web' ? window.alert(`שגיאה: ${errorMsg}`) : Alert.alert('שגיאה', errorMsg);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleOpenReviews = (dish) => {
+    setReviewsDish(dish);
+    setReviewsModalVisible(true);
   };
 
   // --- Dynamic Medal Badge Styling Helper ---
@@ -215,49 +176,54 @@ export default function BusinessProfileScreen({ route, navigation }) {
     const badgeText = getRankTextColor(rank);
 
     return (
-      <View style={[
-        styles.cardContainer,
-        rank <= 3 && {
-          borderColor: badgeBg + '33',
-          borderWidth: 1.5,
-        }
-      ]}>
-        {/* Top row: Image + Text + Rating */}
-        <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flex: 1 }}>
-          {/* Far Right: Image with Rank badge */}
-          <View style={styles.dishImageWrapper}>
-            <View style={styles.dishImageContainer}>
-              <MaterialIcons name="lunch-dining" size={40} color="#FF7F50" />
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => handleOpenReviews(item)}
+      >
+        <View style={[
+          styles.cardContainer,
+          rank <= 3 && {
+            borderColor: badgeBg + '33',
+            borderWidth: 1.5,
+          }
+        ]}>
+          {/* Top row: Image + Text + Rating */}
+          <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flex: 1 }}>
+            {/* Far Right: Image with Rank badge */}
+            <View style={styles.dishImageWrapper}>
+              <View style={styles.dishImageContainer}>
+                <MaterialIcons name="lunch-dining" size={40} color="#FF7F50" />
+              </View>
+              <View style={[styles.dishRankOverlay, { backgroundColor: badgeBg }]}>
+                <Text style={[styles.dishRankOverlayText, { color: badgeText }]}>{rank}</Text>
+              </View>
             </View>
-            <View style={[styles.dishRankOverlay, { backgroundColor: badgeBg }]}>
-              <Text style={[styles.dishRankOverlayText, { color: badgeText }]}>{rank}</Text>
+
+            {/* Middle: Text Info */}
+            <View style={styles.textInfo}>
+              <Text style={styles.dishName}>{item.name}</Text>
+              <Text style={styles.reviewCount}>דורג ע"י {item.review_count || 0} אנשים</Text>
+            </View>
+
+            {/* Far Left: Rating Pill */}
+            <View style={styles.ratingPill}>
+              <Text style={styles.ratingText}>
+                ★ {item.weighted_score ? item.weighted_score.toFixed(1) : '0.0'}
+              </Text>
             </View>
           </View>
 
-          {/* Middle: Text Info */}
-          <View style={styles.textInfo}>
-            <Text style={styles.dishName}>{item.name}</Text>
-            <Text style={styles.reviewCount}>דורג ע"י {item.review_count || 0} אנשים</Text>
-          </View>
-
-          {/* Far Left: Rating Pill */}
-          <View style={styles.ratingPill}>
-            <Text style={styles.ratingText}>
-              ★ {item.weighted_score ? item.weighted_score.toFixed(1) : '0.0'}
-            </Text>
-          </View>
+          {/* Bottom row: Rate Button */}
+          <TouchableOpacity
+            style={styles.rateBtn}
+            onPress={() => handleOpenRatingModal(item)}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="star-rate" size={16} color="#FFF" style={{ marginLeft: 6 }} />
+            <Text style={styles.rateBtnText}>הוסף דירוג</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Bottom row: Rate Button */}
-        <TouchableOpacity
-          style={styles.rateBtn}
-          onPress={() => handleOpenRatingModal(item)}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons name="star-rate" size={16} color="#FFF" style={{ marginLeft: 6 }} />
-          <Text style={styles.rateBtnText}>הוסף דירוג</Text>
-        </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -385,65 +351,21 @@ export default function BusinessProfileScreen({ route, navigation }) {
         }
       />
 
-      {/* ─── Rating Modal ─────────────────────────────────────────── */}
-      <Modal
-        visible={ratingModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setRatingModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setRatingModalVisible(false)}>
-                <Text style={styles.modalCloseX}>✕</Text>
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>דירוג מנה</Text>
-            </View>
+      {/* Unified Rating Form Modal */}
+      <RatingFormModal
+        visible={ratingFormVisible}
+        dish={selectedDish}
+        onClose={() => setRatingFormVisible(false)}
+        onSaveSuccess={fetchBusinessAndDishes}
+      />
 
-            {selectedDish && (
-              <Text style={styles.modalDishName}>{selectedDish.name}</Text>
-            )}
-
-            <Text style={styles.modalLabel}>ציון (1–10)</Text>
-            <TextInput
-              style={[styles.modalInput, ratingError && styles.modalInputError]}
-              value={ratingInput}
-              onChangeText={handleRatingChange}
-              keyboardType="decimal-pad"
-              placeholder="לדוגמה: 8.5"
-              placeholderTextColor={COLORS.textSecondary}
-              textAlign="right"
-            />
-            {ratingError && (
-              <Text style={styles.modalErrorText}>אנא הזן מספר בין 1 ל-10</Text>
-            )}
-
-            <Text style={styles.modalLabel}>הערה (אופציונלי)</Text>
-            <TextInput
-              style={[styles.modalInput, { height: 80, textAlignVertical: 'top' }]}
-              value={commentInput}
-              onChangeText={setCommentInput}
-              multiline
-              placeholder="ספר על החוויה שלך..."
-              placeholderTextColor={COLORS.textSecondary}
-              textAlign="right"
-            />
-
-            <TouchableOpacity
-              style={[styles.modalSaveBtn, (isSubmitting || ratingError || !ratingInput) && { opacity: 0.6 }]}
-              onPress={handleSaveRating}
-              disabled={isSubmitting || ratingError || !ratingInput}
-              activeOpacity={0.8}
-            >
-              {isSubmitting
-                ? <ActivityIndicator color="#FFF" />
-                : <Text style={styles.modalSaveBtnText}>שמור דירוג</Text>
-              }
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* Dish Reviews Modal */}
+      <DishReviewsModal
+        visible={reviewsModalVisible}
+        dish={reviewsDish}
+        onClose={() => setReviewsModalVisible(false)}
+        onRefreshParent={fetchBusinessAndDishes}
+      />
     </SafeAreaView>
   );
 }

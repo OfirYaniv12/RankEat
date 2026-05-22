@@ -8,18 +8,15 @@ import {
   Animated,
   ActivityIndicator,
   StatusBar,
-  Platform,
   useWindowDimensions,
-  Modal,
-  TextInput,
-  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { getRankedDishes, addReview } from '../database/queries';
+import { getRankedDishes } from '../database/queries';
 import { getRankedRestaurants } from '../database/SearchQueries';
-import { supabase } from '../database/supabaseClient';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import RatingFormModal from '../components/RatingFormModal';
+import DishReviewsModal from '../components/DishReviewsModal';
 
 export default function RankingsScreen({ navigation, route }) {
   const { user } = useAuth();
@@ -31,13 +28,13 @@ export default function RankingsScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Modal State for Rating (Dish Mode only)
-  const [modalVisible, setModalVisible] = useState(false);
+  // Unified rating form modal
+  const [ratingFormVisible, setRatingFormVisible] = useState(false);
   const [selectedDish, setSelectedDish] = useState(null);
-  const [ratingInput, setRatingInput] = useState('');
-  const [commentInput, setCommentInput] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [ratingError, setRatingError] = useState(false);
+
+  // Dish reviews modal
+  const [reviewsModalVisible, setReviewsModalVisible] = useState(false);
+  const [reviewsDish, setReviewsDish] = useState(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -80,81 +77,12 @@ export default function RankingsScreen({ navigation, route }) {
 
   const handleOpenModal = (dish) => {
     setSelectedDish(dish);
-    setRatingInput('');
-    setRatingError(false);
-    setCommentInput('');
-    setModalVisible(true);
+    setRatingFormVisible(true);
   };
 
-  const handleRatingChange = (text) => {
-    let formatted = text.replace(/[^0-9.]/g, '');
-    const parts = formatted.split('.');
-    if (parts.length > 2) {
-      formatted = parts[0] + '.' + parts.slice(1).join('');
-    }
-
-    if (parts.length === 2 && parts[1].length > 1) {
-      formatted = parts[0] + '.' + parts[1].slice(0, 1);
-    }
-
-    setRatingInput(formatted);
-
-    const val = parseFloat(formatted);
-    if (formatted === '' || isNaN(val) || val < 1 || val > 10) {
-      setRatingError(true);
-    } else {
-      setRatingError(false);
-    }
-  };
-
-  const handleSaveRating = async () => {
-    const val = parseFloat(ratingInput);
-    if (isNaN(val) || val < 1 || val > 10.1) {
-      const msg = 'אנא הזן דירוג בין 1 ל-10';
-      if (Platform.OS === 'web') {
-        window.alert(msg);
-      } else {
-        Alert.alert('שגיאה', msg);
-      }
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        if (Platform.OS === 'web') {
-          window.alert('אתה חייב להיות מחובר כדי לדרג! אנא הירשם או התחבר.');
-        } else {
-          Alert.alert('התחברות דרושה', 'אתה חייב להיות מחובר כדי לדרג! אנא הירשם או התחבר.');
-        }
-        setIsSubmitting(false);
-        return;
-      }
-
-      await addReview({ 
-        dishId: selectedDish.id, 
-        rating: val, 
-        comment: commentInput 
-      });
-
-      setModalVisible(false);
-      setRatingInput('');
-      setCommentInput('');
-      setLoading(true);
-      await loadRankings();
-    } catch (e) {
-      console.error('Save Rating Error:', e);
-      const errorMsg = e.message || 'לא ניתן לשמור את הדירוג כעת';
-      if (Platform.OS === 'web') {
-        window.alert(`שגיאה: ${errorMsg}`);
-      } else {
-        Alert.alert('שגיאה', errorMsg);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleOpenReviews = (dish) => {
+    setReviewsDish(dish);
+    setReviewsModalVisible(true);
   };
 
   // --- Dynamic Medal Badge Styling Helper ---
@@ -179,132 +107,142 @@ export default function RankingsScreen({ navigation, route }) {
     if (isMobile) {
       return (
         <Animated.View style={[{ opacity: fadeAnim, width: '100%', maxWidth: 800, alignSelf: 'center' }, styles.cardWrapper]}>
-          <View style={[
-            styles.premiumCard, 
-            { 
-              position: 'relative', 
-              width: '100%', 
-              flexDirection: 'column', 
-              padding: 16, 
-              marginBottom: 16,
-              borderColor: rank <= 3 ? badgeBg + '44' : 'rgba(255, 255, 255, 0.05)',
-              borderWidth: rank <= 3 ? 1.5 : 1,
-            }
-          ]}>
-            {/* Rank Circle absolute overlay top-right */}
-            <View style={[styles.mobileRankOverlay, { backgroundColor: badgeBg }]}>
-              <Text style={[styles.mobileRankOverlayText, { color: badgeText }]}>{rank}</Text>
-            </View>
-
-            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', width: '100%' }}>
-              {/* Far Right: Dish Image */}
-              <View style={[styles.photoPlaceholder, { width: 70, height: 70 }]}>
-                <MaterialIcons name="lunch-dining" size={24} color="#FF7F50" />
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => handleOpenReviews(item)}
+          >
+            <View style={[
+              styles.premiumCard, 
+              { 
+                position: 'relative', 
+                width: '100%', 
+                flexDirection: 'column', 
+                padding: 16, 
+                marginBottom: 16,
+                borderColor: rank <= 3 ? badgeBg + '44' : 'rgba(255, 255, 255, 0.05)',
+                borderWidth: rank <= 3 ? 1.5 : 1,
+              }
+            ]}>
+              {/* Rank Circle absolute overlay top-right */}
+              <View style={[styles.mobileRankOverlay, { backgroundColor: badgeBg }]}>
+                <Text style={[styles.mobileRankOverlayText, { color: badgeText }]}>{rank}</Text>
               </View>
 
-              {/* Middle Column: Text */}
-              <View style={{ flex: 1, marginHorizontal: 12, alignItems: 'flex-end' }}>
-                <Text style={[styles.cardTitle, { fontSize: 18, color: '#FFFFFF', textAlign: 'right' }]} numberOfLines={2}>
-                  {item.business_name} | {item.city_name}
-                </Text>
-                <Text style={[styles.cardAddress, { fontSize: 14, color: '#A0A0A5', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
-                  {item.address || 'כתובת לא הוזנה'}
-                </Text>
-                <Text style={[styles.cardReviews, { fontSize: 12, color: '#6E6E73', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
-                  דורג ע"י {item.review_count || 0} אנשים
-                </Text>
+              <View style={{ flexDirection: 'row-reverse', alignItems: 'center', width: '100%' }}>
+                {/* Far Right: Dish Image */}
+                <View style={[styles.photoPlaceholder, { width: 70, height: 70 }]}>
+                  <MaterialIcons name="lunch-dining" size={24} color="#FF7F50" />
+                </View>
+
+                {/* Middle Column: Text */}
+                <View style={{ flex: 1, marginHorizontal: 12, alignItems: 'flex-end' }}>
+                  <Text style={[styles.cardTitle, { fontSize: 18, color: '#FFFFFF', textAlign: 'right' }]} numberOfLines={2}>
+                    {item.business_name} | {item.city_name}
+                  </Text>
+                  <Text style={[styles.cardAddress, { fontSize: 14, color: '#A0A0A5', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
+                    {item.address || 'כתובת לא הוזנה'}
+                  </Text>
+                  <Text style={[styles.cardReviews, { fontSize: 12, color: '#6E6E73', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
+                    דורג ע"י {item.review_count || 0} אנשים
+                  </Text>
+                </View>
+
+                <View style={[styles.ratingBadge, { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, alignSelf: 'flex-end', marginBottom: 6 }]}>
+                  <Text style={[styles.ratingBadgeText, { fontSize: 15 }]}>
+                    ★ {item.weighted_score.toFixed(1)}
+                  </Text>
+                </View>
               </View>
 
-              <View style={[styles.ratingBadge, { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, alignSelf: 'flex-end', marginBottom: 6 }]}>
-                <Text style={[styles.ratingBadgeText, { fontSize: 15 }]}>
-                  ★ {item.weighted_score.toFixed(1)}
-                </Text>
+              {/* Stacked Action Buttons */}
+              <View style={{ flexDirection: 'column', width: '100%', marginTop: 12, gap: 8 }}>
+                <TouchableOpacity 
+                  style={[styles.outlineBtnAccent, { width: '100%', paddingVertical: 10, borderRadius: 8 }]}
+                  onPress={(e) => { e.stopPropagation(); handleOpenModal(item); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.outlineBtnAccentText, { fontSize: 14, textAlign: 'center' }]}>הוסף דירוג</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.outlineBtn, { width: '100%', paddingVertical: 10, borderRadius: 8 }]}
+                  onPress={(e) => { e.stopPropagation(); navigation.navigate('BusinessProfile', { businessId: item.business_id }); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.outlineBtnText, { fontSize: 14, textAlign: 'center' }]}>לעמוד המסעדה</Text>
+                </TouchableOpacity>
               </View>
             </View>
-
-            {/* Stacked Action Buttons */}
-            <View style={{ flexDirection: 'column', width: '100%', marginTop: 12, gap: 8 }}>
-              <TouchableOpacity 
-                style={[styles.outlineBtnAccent, { width: '100%', paddingVertical: 10, borderRadius: 8 }]}
-                onPress={() => handleOpenModal(item)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.outlineBtnAccentText, { fontSize: 14, textAlign: 'center' }]}>הוסף דירוג</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.outlineBtn, { width: '100%', paddingVertical: 10, borderRadius: 8 }]}
-                onPress={() => navigation.navigate('BusinessProfile', { businessId: item.business_id })}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.outlineBtnText, { fontSize: 14, textAlign: 'center' }]}>לעמוד המסעדה</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </TouchableOpacity>
         </Animated.View>
       );
     }
 
     return (
       <Animated.View style={[{ opacity: fadeAnim }, styles.cardWrapper]}>
-        <View style={styles.outerRowContainer}>
-          <View style={[styles.rankBadgeCircle, { width: 44, height: 44, borderRadius: 22, backgroundColor: badgeBg }]}>
-            <Text style={[styles.rankBadgeText, { fontSize: 20, color: badgeText }]}>{rank}</Text>
-          </View>
-
-          <View style={[
-            styles.premiumCard, 
-            { 
-              flex: 1, 
-              flexDirection: 'row-reverse', 
-              alignItems: 'center', 
-              justifyContent: 'space-between', 
-              padding: 20,
-              borderColor: rank <= 3 ? badgeBg + '44' : 'rgba(255, 255, 255, 0.05)',
-              borderWidth: rank <= 3 ? 1.5 : 1,
-            }
-          ]}>
-            <View style={[styles.photoPlaceholder, { width: 100, height: 100, flexShrink: 0 }]}>
-              <MaterialIcons name="lunch-dining" size={40} color="#FF7F50" />
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => handleOpenReviews(item)}
+        >
+          <View style={styles.outerRowContainer}>
+            <View style={[styles.rankBadgeCircle, { width: 44, height: 44, borderRadius: 22, backgroundColor: badgeBg }]}>
+              <Text style={[styles.rankBadgeText, { fontSize: 20, color: badgeText }]}>{rank}</Text>
             </View>
 
-            <View style={[styles.textSection, { marginHorizontal: 16, flex: 1, alignItems: 'flex-end' }]}>
-              <Text style={[styles.cardTitle, { fontSize: 22 }]} numberOfLines={2}>
-                {item.business_name} | {item.city_name}
-              </Text>
-              <Text style={[styles.cardAddress, { fontSize: 16 }]} numberOfLines={1}>
-                {item.address || 'כתובת לא הוזנה'}
-              </Text>
-              <Text style={[styles.cardReviews, { fontSize: 14 }]} numberOfLines={1}>
-                דורג ע"י {item.review_count || 0} אנשים
-              </Text>
-            </View>
+            <View style={[
+              styles.premiumCard, 
+              { 
+                flex: 1, 
+                flexDirection: 'row-reverse', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                padding: 20,
+                borderColor: rank <= 3 ? badgeBg + '44' : 'rgba(255, 255, 255, 0.05)',
+                borderWidth: rank <= 3 ? 1.5 : 1,
+              }
+            ]}>
+              <View style={[styles.photoPlaceholder, { width: 100, height: 100, flexShrink: 0 }]}>
+                <MaterialIcons name="lunch-dining" size={40} color="#FF7F50" />
+              </View>
 
-            <View style={[styles.leftSection, { height: 100 }]}>
-              <View style={[styles.ratingBadge, { paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' }]}>
-                <Text style={[styles.ratingBadgeText, { fontSize: 18 }]}>
-                  ★ {item.weighted_score.toFixed(1)}
+              <View style={[styles.textSection, { marginHorizontal: 16, flex: 1, alignItems: 'flex-end' }]}>
+                <Text style={[styles.cardTitle, { fontSize: 22 }]} numberOfLines={2}>
+                  {item.business_name} | {item.city_name}
+                </Text>
+                <Text style={[styles.cardAddress, { fontSize: 16 }]} numberOfLines={1}>
+                  {item.address || 'כתובת לא הוזנה'}
+                </Text>
+                <Text style={[styles.cardReviews, { fontSize: 14 }]} numberOfLines={1}>
+                  דורג ע"י {item.review_count || 0} אנשים
                 </Text>
               </View>
 
-              <View style={[styles.actionButtonRow, { gap: 10 }]}>
-                <TouchableOpacity 
-                  style={[styles.outlineBtn, { paddingVertical: 10, paddingHorizontal: 16 }]}
-                  onPress={() => navigation.navigate('BusinessProfile', { businessId: item.business_id })}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.outlineBtnText, { fontSize: 15 }]}>לעמוד המסעדה</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.outlineBtnAccent, { paddingVertical: 10, paddingHorizontal: 16 }]}
-                  onPress={() => handleOpenModal(item)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.outlineBtnAccentText, { fontSize: 15 }]}>הוסף דירוג</Text>
-                </TouchableOpacity>
+              <View style={[styles.leftSection, { height: 100 }]}>
+                <View style={[styles.ratingBadge, { paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' }]}>
+                  <Text style={[styles.ratingBadgeText, { fontSize: 18 }]}>
+                    ★ {item.weighted_score.toFixed(1)}
+                  </Text>
+                </View>
+
+                <View style={[styles.actionButtonRow, { gap: 10 }]}>
+                  <TouchableOpacity 
+                    style={[styles.outlineBtn, { paddingVertical: 10, paddingHorizontal: 16 }]}
+                    onPress={() => navigation.navigate('BusinessProfile', { businessId: item.business_id })}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.outlineBtnText, { fontSize: 15 }]}>לעמוד המסעדה</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.outlineBtnAccent, { paddingVertical: 10, paddingHorizontal: 16 }]}
+                    onPress={() => handleOpenModal(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.outlineBtnAccentText, { fontSize: 15 }]}>הוסף דירוג</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Animated.View>
     );
   };
@@ -511,60 +449,21 @@ export default function RankingsScreen({ navigation, route }) {
         </ScrollView>
       )}
 
-      {/* Review Modal (Dish Mode only) */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isMobile && styles.modalContentMobile]}>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setModalVisible(false)}>
-              <Text style={styles.closeBtnText}>✕</Text>
-            </TouchableOpacity>
+      {/* Unified Rating Form Modal */}
+      <RatingFormModal
+        visible={ratingFormVisible}
+        dish={selectedDish}
+        onClose={() => setRatingFormVisible(false)}
+        onSaveSuccess={() => { setLoading(true); loadRankings(); }}
+      />
 
-            <Text style={styles.modalTitle}>נו איך היה?</Text>
-            
-             <TextInput
-              style={[styles.ratingInput, ratingError && { borderColor: '#FF6B6B' }]}
-              keyboardType="decimal-pad"
-              inputMode="decimal"
-              maxLength={4}
-              placeholder="10"
-              placeholderTextColor={COLORS.textSecondary}
-              value={ratingInput}
-              onChangeText={handleRatingChange}
-              editable={!isSubmitting}
-            />
-            {ratingError && ratingInput.length > 0 && (
-              <Text style={styles.errorTextSmall}>נא להזין ציון בין 1 ל-10</Text>
-            )}
-
-            <TextInput
-              style={styles.commentInput}
-              multiline={true}
-              numberOfLines={4}
-              placeholder="ספרו לנו קצת על המנה (אופציונלי)"
-              placeholderTextColor={COLORS.textSecondary}
-              value={commentInput}
-              onChangeText={setCommentInput}
-              editable={!isSubmitting}
-              textAlignVertical="top"
-            />
-            
-            <TouchableOpacity 
-              style={[styles.saveBtn, (!ratingInput || ratingError || isSubmitting) && { opacity: 0.5 }]} 
-              onPress={handleSaveRating}
-              disabled={!ratingInput || ratingError || isSubmitting}
-            >
-              <Text style={styles.saveBtnText}>{isSubmitting ? 'שומר...' : 'שמור דירוג'}</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.modalNote}>רק מזכירים, הדירוג הוא למנה עצמה ולא לעסק 😉</Text>
-          </View>
-        </View>
-      </Modal>
+      {/* Dish Reviews Modal */}
+      <DishReviewsModal
+        visible={reviewsModalVisible}
+        dish={reviewsDish}
+        onClose={() => setReviewsModalVisible(false)}
+        onRefreshParent={() => { setLoading(true); loadRankings(); }}
+      />
     </View>
   );
 }
