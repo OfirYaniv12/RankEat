@@ -1,17 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Animated,
   useWindowDimensions,
-  Dimensions,
   ScrollView,
   TextInput,
   Modal,
   Platform,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
@@ -25,10 +24,6 @@ export default function GlobalLayout({ children }) {
   const { width } = useWindowDimensions();
   const navigation = useNavigation();
   const isMobile = width < 768;
-
-  // Drawer State
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const drawerAnim = useRef(new Animated.Value(Dimensions.get('window').width)).current; 
 
   // Auth State
   const [authError, setAuthError] = useState(null);
@@ -250,24 +245,6 @@ export default function GlobalLayout({ children }) {
     }
   };
 
-  const toggleDrawer = () => {
-    const nextState = !isDrawerOpen;
-    if (nextState) {
-      setIsDrawerOpen(true);
-      Animated.timing(drawerAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(drawerAnim, {
-        toValue: width,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => setIsDrawerOpen(false));
-    }
-  };
-
   return (
     <View style={styles.container}>
       {/* Fixed Header */}
@@ -295,42 +272,12 @@ export default function GlobalLayout({ children }) {
             </>
           )}
         </View>
-        <View style={styles.headerCenter}></View>
-        <TouchableOpacity style={styles.headerRight} onPress={toggleDrawer}>
-          <View style={styles.hamburger}>
-            <View style={styles.hamburgerLine} />
-            <View style={[styles.hamburgerLine, { marginVertical: 5 }]} />
-            <View style={styles.hamburgerLine} />
-          </View>
-        </TouchableOpacity>
       </View>
 
       {/* Main Content Area */}
       <View style={styles.contentWrapper}>
         {children}
       </View>
-
-      {/* Side Drawer Modal */}
-      {isDrawerOpen && (
-        <View style={StyleSheet.absoluteFill}>
-          <TouchableOpacity 
-            activeOpacity={1} 
-            style={styles.drawerOverlay} 
-            onPress={toggleDrawer} 
-          />
-          <Animated.View style={[
-            styles.drawerContent, 
-            { width: isMobile ? '80%' : 300, transform: [{ translateX: drawerAnim }] }
-          ]}>
-            <View style={styles.drawerHeader}>
-              <Text style={styles.drawerTitle}>תפריט</Text>
-            </View>
-            <View style={styles.drawerBody}>
-              <Text style={styles.emptyDrawerText}>בקרוב...</Text>
-            </View>
-          </Animated.View>
-        </View>
-      )}
 
       {/* Sign Up Modal */}
       <Modal
@@ -584,53 +531,6 @@ const styles = StyleSheet.create({
   },
   headerCenter: {
     flex: 1,
-  },
-  headerRight: {},
-  hamburger: {
-    padding: SPACING.sm,
-  },
-  hamburgerLine: {
-    width: 24,
-    height: 3,
-    backgroundColor: COLORS.textPrimary,
-    borderRadius: RADIUS.sm,
-  },
-  drawerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: 1001,
-  },
-  drawerContent: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: 0,
-    backgroundColor: COLORS.surface,
-    zIndex: 1002,
-    borderLeftWidth: 1,
-    borderLeftColor: COLORS.border,
-    padding: SPACING.lg,
-  },
-  drawerHeader: {
-    paddingBottom: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    marginBottom: SPACING.lg,
-  },
-  drawerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 24,
-    color: COLORS.textPrimary,
-    textAlign: 'right',
-  },
-  drawerBody: {
-    flex: 1,
-  },
-  emptyDrawerText: {
-    fontFamily: FONTS.regular,
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    textAlign: 'right',
   },
   modalOverlay: {
     flex: 1,

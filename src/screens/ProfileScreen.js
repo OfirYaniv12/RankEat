@@ -99,6 +99,7 @@ export default function ProfileScreen() {
           dishes (
             name,
             businesses (
+              id,
               name,
               cities (
                 name
@@ -289,6 +290,18 @@ export default function ProfileScreen() {
         >
           <MaterialIcons name="edit" size={22} color="#64748B" />
         </TouchableOpacity>
+
+        {/* Go to Business Button */}
+        {item.dishes?.businesses?.id && (
+          <TouchableOpacity
+            style={styles.goToBusinessBtn}
+            onPress={() => navigation.navigate('BusinessProfile', { businessId: item.dishes.businesses.id })}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="storefront" size={14} color={COLORS.accent} style={{ marginLeft: 4 }} />
+            <Text style={styles.goToBusinessText}>לעמוד המסעדה</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -646,4 +659,20 @@ const styles = StyleSheet.create({
   emptyView: { padding: 40, alignItems: 'center' },
   emptyText: { color: '#64748B', fontSize: 16, textAlign: 'center' },
   actionOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9999, justifyContent: 'center', alignItems: 'center' },
+  goToBusinessBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    marginLeft: 'auto',
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 53, 0.3)',
+    borderRadius: RADIUS.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+  },
+  goToBusinessText: {
+    color: COLORS.accent,
+    fontFamily: FONTS.semibold,
+    fontSize: 13,
+  },
 });
