@@ -26,6 +26,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../database/supabaseClient';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import RatingFormModal from './RatingFormModal';
+import { getUserTitle } from '../utils/userTitle';
 
 export default function DishReviewsModal({ visible, dish, onClose, onRefreshParent }) {
   const { width } = useWindowDimensions();
@@ -53,7 +54,8 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
           profiles (
             first_name,
             last_name,
-            trust_score
+            trust_score,
+            review_count
           )
         `)
         .eq('dish_id', dish.id);
@@ -107,33 +109,25 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     return [first, last].filter(Boolean).join(' ') || 'אנונימי';
   };
 
-  const getRankNickname = (trustScore) => {
-    if (trustScore >= 3) return 'מבקר מישלן';
-    if (trustScore >= 2) return 'טורף על';
-    if (trustScore >= 1.5) return 'גרגרן מוסמך';
-    return 'טועם מתחיל';
+  const getRankNickname = (trustScore, reviewCount) => {
+    return getUserTitle(trustScore, reviewCount);
   };
 
   const renderReviewItem = ({ item, index }) => {
     const name = formatReviewerName(item.profiles);
     const date = formatDate(item.created_at);
     const trustScore = item.profiles?.trust_score ?? 0;
-    const rankNickname = getRankNickname(trustScore);
-
-    // Trust tier icon: top reviewers get a small badge
-    let tierIcon = null;
-    if (trustScore >= 3) tierIcon = '👑';
-    else if (trustScore >= 2) tierIcon = '⭐';
-    else if (trustScore >= 1.5) tierIcon = '🔥';
+    const reviewCount = item.profiles?.review_count ?? 0;
+    const title = getUserTitle(trustScore, reviewCount);
 
     return (
       <View style={[styles.reviewCard, index === 0 && styles.reviewCardFirst]}>
         {/* Header row: Spread out without stacking */}
         <View style={styles.reviewHeader}>
-          {/* Right: name + tier icon + rank nickname */}
+          {/* Right: name + user title */}
           <View style={styles.reviewerInfo}>
             <Text style={styles.reviewerName} numberOfLines={1}>
-              {tierIcon ? `${tierIcon} ` : ''}{name} <Text style={styles.rankNickname}>({rankNickname})</Text>
+              {name} <Text style={styles.rankNickname}>({title})</Text>
             </Text>
           </View>
 

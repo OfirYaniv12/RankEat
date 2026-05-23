@@ -21,6 +21,7 @@ import { supabase } from '../database/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { getCitiesByDistrict, getDistricts } from '../database/queries';
 import { COLORS, FONTS, RADIUS, SPACING } from '../theme';
+import { getUserTitle } from '../utils/userTitle';
 
 const showAlert = (title, message) => {
   if (Platform.OS === 'web') {
@@ -160,18 +161,6 @@ export default function ProfileScreen() {
     applyProfileToEditState(profileData);
   };
 
-  const getRankTitle = (trustScore, reviewCount) => {
-    const ts = trustScore || 0;
-    const rc = reviewCount || 0;
-    if (ts < 0.5) return "חשוד מאוד 🚨";
-    if (ts < 1.0) return "מבקר על תנאי ⚠️";
-    if (rc === 0) return "צופה מהצד 👀";
-    if (rc <= 5) return "נשנשן מצוי 🍟";
-    if (rc <= 15) return "חגורה שחורה בטייק-אווי 🥋";
-    if (rc <= 30) return "מבקר מסעדות במסווה 🕵️‍♂️";
-    if (rc <= 50) return "שופט קולינרי 👨‍⚖️";
-    return "גורדון רמזי הישראלי 👑";
-  };
 
   const handleDeleteReview = async () => {
     const idToDelete = reviewToDelete;
@@ -340,7 +329,7 @@ export default function ProfileScreen() {
             </View>
             <Text style={styles.profileNameTxt}>{profileData?.first_name} {profileData?.last_name}</Text>
             <View style={styles.trustBadgePill}>
-              <Text style={styles.trustTxt}>{getRankTitle(profileData?.trust_score, reviews.length)}</Text>
+              <Text style={styles.trustTxt}>{getUserTitle(profileData?.trust_score, reviews.length)}</Text>
             </View>
 
             <TouchableOpacity style={styles.editProfileBtnOutline} onPress={() => setEditProfileVisible(true)}>
