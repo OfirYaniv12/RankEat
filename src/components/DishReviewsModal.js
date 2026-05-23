@@ -54,8 +54,7 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
           profiles (
             first_name,
             last_name,
-            trust_score,
-            review_count
+            trust_score
           )
         `)
         .eq('dish_id', dish.id);
@@ -117,8 +116,10 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     const name = formatReviewerName(item.profiles);
     const date = formatDate(item.created_at);
     const trustScore = item.profiles?.trust_score ?? 0;
-    const reviewCount = item.profiles?.review_count ?? 0;
-    const title = getUserTitle(trustScore, reviewCount);
+    // review_count is not stored on the profiles table, so we pass 0 here.
+    // getUserTitle will correctly apply the trust_score-based tiers for
+    // suspicious users (rp < 1) and default to the base title for trusted ones.
+    const title = getUserTitle(trustScore, 0);
 
     return (
       <View style={[styles.reviewCard, index === 0 && styles.reviewCardFirst]}>
