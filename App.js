@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { initDatabase } from './src/database/schema';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/context/AuthContext';
-
 import GlobalLayout from './src/components/GlobalLayout';
-
 import { NavigationContainer } from '@react-navigation/native';
 import { navigationRef } from './src/navigation/navigationRef';
 
@@ -17,9 +15,49 @@ if (Platform.OS !== 'web') {
   GestureHandlerRootView = ({ children, style }) => (
     <View style={style}>{children}</View>
   );
-  
 }
 
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+// Catches any unhandled render errors so the user sees a helpful message
+// instead of a completely blank screen.
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error('ErrorBoundary caught an error:', error, info);
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.center}>
+          <Text style={{ fontSize: 48, marginBottom: 12 }}>😬</Text>
+          <Text style={styles.appName}>משהו השתבש</Text>
+          <Text style={styles.errorText}>
+            {this.state.error?.message || 'שגיאה לא ידועה'}
+          </Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={this.handleRetry}>
+            <Text style={styles.retryText}>נסה שוב</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(null);
@@ -53,15 +91,17 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <NavigationContainer ref={navigationRef}>
-          <GlobalLayout>
-            <AppNavigator />
-          </GlobalLayout>
-        </NavigationContainer>
-      </GestureHandlerRootView>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <NavigationContainer ref={navigationRef}>
+            <GlobalLayout>
+              <AppNavigator />
+            </GlobalLayout>
+          </NavigationContainer>
+        </GestureHandlerRootView>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -71,6 +111,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D0F14',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 32,
   },
   logo: {
     fontSize: 64,
@@ -81,6 +122,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#F1F5F9',
     letterSpacing: -1,
+    marginBottom: 12,
   },
   loadingText: {
     fontSize: 14,
@@ -89,8 +131,22 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#FF6B6B',
-    fontSize: 16,
+    fontSize: 15,
     textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  retryBtn: {
+    backgroundColor: '#FF6B35',
     paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  retryText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

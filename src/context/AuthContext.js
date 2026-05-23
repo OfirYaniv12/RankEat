@@ -1,5 +1,4 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { Platform } from 'react-native';
 import { supabase } from '../database/supabaseClient';
 import { getProfile, upsertProfile } from '../database/queries';
 
@@ -38,14 +37,14 @@ export const AuthProvider = ({ children }) => {
 
       setUser({ ...authUser, ...profile });
     } catch (e) {
-      console.error('Profile fetch/create error:', e);
-      // Fallback: set the raw auth user so the app doesn't break
+      console.error('AuthContext: Profile fetch/create error:', e);
+      // Fallback: set the raw auth user so the app doesn't hard-block
       setUser(authUser);
     }
   };
 
   // ─── Exposed so screens (e.g. CompleteProfileScreen) can re-fetch ─────────
-  const refreshUser = async (userId) => {
+  const refreshUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       await refreshProfile(session.user);
@@ -53,59 +52,29 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    console.log('AuthContext useEffect started');
-    
-    // Safety fallback: if something hangs indefinitely, force loading to false
-    const fallbackTimer = setTimeout(() => {
-      console.log('AuthContext fallback timer triggered! Forcing loading=false');
-      setLoading(false);
-    }, 5000);
-
-    // 1. Initial session check — handles the OAuth redirect hash on web
-    const initializeAuth = async () => {
-      console.log('initializeAuth called');
-      try {
-        console.log('Calling supabase.auth.getSession()...');
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('getSession completed. user:', session?.user?.email);
-        if (session?.user) {
-          console.log('Calling refreshProfile from initializeAuth...');
-          await refreshProfile(session.user);
-          console.log('refreshProfile from initializeAuth completed.');
+    // Single source of truth: onAuthStateChange fires INITIAL_SESSION on mount,
+    // which handles both the "no session" and "existing session" cases.
+    // We no longer need a separate initializeAuth() call, which was causing
+    // a race condition where refreshProfile() could be called twice.
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error('Auth Init Error:', error);
-      } finally {
-        console.log('initializeAuth finally block. Setting loading=false');
+
+        if (session?.user) {
+          await refreshProfile(session.user);
+        } else {
+          setUser(null);
+        }
+
         setLoading(false);
       }
-    };
-
-    initializeAuth();
-
-    // 2. Auth state listener — fires for SIGNED_IN, TOKEN_REFRESHED, SIGNED_OUT, etc.
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth Event:', event, session?.user?.email);
-
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      if (session?.user) {
-        console.log('Calling refreshProfile from onAuthStateChange...');
-        await refreshProfile(session.user);
-        console.log('refreshProfile from onAuthStateChange completed.');
-      }
-
-      console.log('onAuthStateChange setting loading=false');
-      setLoading(false);
-    });
+    );
 
     return () => {
-      console.log('AuthContext cleanup running');
-      clearTimeout(fallbackTimer);
       authListener?.subscription?.unsubscribe();
     };
   }, []);

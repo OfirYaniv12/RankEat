@@ -12,7 +12,8 @@ import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import { getHomeStats } from '../database/queries';
 
 export default function HomeScreen({ navigation }) {
-  const [stats, setStats] = useState({ cities: 0, restaurants: 0, reviews: 0 });
+  const [stats, setStats] = useState(null); // null = loading, object = data
+  const [statsError, setStatsError] = useState(false);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -39,11 +40,13 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   const fetchStats = async () => {
+    setStatsError(false);
     try {
       const data = await getHomeStats();
       setStats(data);
     } catch (e) {
-      console.error('Error fetching stats:', e);
+      console.error('HomeScreen: Failed to fetch stats:', e);
+      setStatsError(true);
     }
   };
 
@@ -116,22 +119,38 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* Stats row (Bottom) */}
-      <View style={[styles.statsRow, isMobile && { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, marginBottom: SPACING.xl }]}>
-        <View style={[styles.statItem, isMobile && { paddingHorizontal: SPACING.md }]}>
-          <Text style={[styles.statNumber, isMobile && { fontSize: 22 }]}>{formatNumber(stats.cities, true)}</Text>
-          <Text style={[styles.statLabel, isMobile && { fontSize: 13 }]}>ערים</Text>
+      {statsError ? (
+        <TouchableOpacity
+          style={[styles.statsRow, isMobile && { paddingHorizontal: SPACING.lg, marginBottom: SPACING.xl }]}
+          onPress={fetchStats}
+          activeOpacity={0.7}
+        >
+          <Text style={{ color: COLORS.textSecondary, fontFamily: FONTS.regular, fontSize: 14 }}>
+            🔄 לא ניתן לטעון נתונים — לחץ לנסות שוב
+          </Text>
+        </TouchableOpacity>
+      ) : !stats ? (
+        <View style={[styles.statsRow, isMobile && { paddingHorizontal: SPACING.lg, marginBottom: SPACING.xl }]}>
+          <Text style={{ color: COLORS.textSecondary, fontFamily: FONTS.regular, fontSize: 14 }}>טוען...</Text>
         </View>
-        <View style={styles.statDivider} />
-        <View style={[styles.statItem, isMobile && { paddingHorizontal: SPACING.md }]}>
-          <Text style={[styles.statNumber, isMobile && { fontSize: 22 }]}>{formatNumber(stats.restaurants)}</Text>
-          <Text style={[styles.statLabel, isMobile && { fontSize: 13 }]}>מסעדות</Text>
+      ) : (
+        <View style={[styles.statsRow, isMobile && { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, marginBottom: SPACING.xl }]}>
+          <View style={[styles.statItem, isMobile && { paddingHorizontal: SPACING.md }]}>
+            <Text style={[styles.statNumber, isMobile && { fontSize: 22 }]}>{formatNumber(stats.cities, true)}</Text>
+            <Text style={[styles.statLabel, isMobile && { fontSize: 13 }]}>ערים</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={[styles.statItem, isMobile && { paddingHorizontal: SPACING.md }]}>
+            <Text style={[styles.statNumber, isMobile && { fontSize: 22 }]}>{formatNumber(stats.restaurants)}</Text>
+            <Text style={[styles.statLabel, isMobile && { fontSize: 13 }]}>מסעדות</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={[styles.statItem, isMobile && { paddingHorizontal: SPACING.md }]}>
+            <Text style={[styles.statNumber, isMobile && { fontSize: 22 }]}>{formatNumber(stats.reviews)}</Text>
+            <Text style={[styles.statLabel, isMobile && { fontSize: 13 }]}>דירוגים</Text>
+          </View>
         </View>
-        <View style={styles.statDivider} />
-        <View style={[styles.statItem, isMobile && { paddingHorizontal: SPACING.md }]}>
-          <Text style={[styles.statNumber, isMobile && { fontSize: 22 }]}>{formatNumber(stats.reviews)}</Text>
-          <Text style={[styles.statLabel, isMobile && { fontSize: 13 }]}>דירוגים</Text>
-        </View>
-      </View>
+      )}
     </View>
   );
 }

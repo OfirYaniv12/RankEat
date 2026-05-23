@@ -51,7 +51,6 @@ export const getCategories = async () => {
     .select('id, name')
     .order('name', { ascending: true });
     
-  console.log('Fetched Categories from Supabase:', data);
   if (error) throw new Error(`getCategories: ${error.message}`);
   return data || [];
 };
@@ -63,7 +62,6 @@ export const getDistricts = async () => {
     .select('id, name')
     .order('name', { ascending: true });
 
-  console.log('Fetched Districts from Supabase:', data);
   if (error) throw new Error(`getDistricts: ${error.message}`);
   return data || [];
 };
@@ -75,14 +73,12 @@ export const getCities = async () => {
     .select('id, name')
     .order('name', { ascending: true });
 
-  console.log('Fetched Cities from Supabase:', data);
   if (error) throw new Error(`getCities: ${error.message}`);
   return data || [];
 };
 
 // ─── RANKED RESTAURANTS (Fuzzy & Structured Unified Search) ──────────────────
 export const getRankedRestaurants = async ({ nameQuery, searchMode, selectedLocation, selectedCategoryIds, userCityId, userDistrictId }) => {
-  console.log('SearchQueries: getRankedRestaurants inputs:', { nameQuery, searchMode, selectedLocation, selectedCategoryIds, userCityId, userDistrictId });
 
   // 1. Fetch all businesses, along with their city/district/dishes
   const { data: businesses, error } = await supabase
@@ -262,6 +258,5 @@ export const getRankedRestaurants = async ({ nameQuery, searchMode, selectedLoca
     });
   }
 
-  console.log(`SearchQueries: getRankedRestaurants returning ${formattedBusinesses.length} results`);
   return formattedBusinesses;
 };
