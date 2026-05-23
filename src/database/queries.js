@@ -210,6 +210,29 @@ export const addReview = async ({ dishId, rating, comment }) => {
   return true;
 };
 
+export const updateReview = async ({ reviewId, rating, comment }) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error('אתה חייב להיות מחובר כדי לעדכן דירוג');
+  }
+
+  const { error: reviewError } = await supabase
+    .from('reviews')
+    .update({
+      rating: parseFloat(rating),
+      comment: comment || '',
+    })
+    .eq('id', reviewId)
+    .eq('user_id', user.id);
+
+  if (reviewError) {
+    console.error('Supabase Update Review Error:', reviewError);
+    throw new Error(`updateReview: ${reviewError.message}`);
+  }
+
+  return true;
+};
+
 // ─── AUTH & PROFILES ────────────────────────────────────────────────────────
 export const signUpUser = async ({ email, password, firstName, lastName, districtId, cityId }) => {
   // 1. Supabase Auth Sign Up

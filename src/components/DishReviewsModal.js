@@ -21,6 +21,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   useWindowDimensions,
+  Platform,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../database/supabaseClient';
@@ -38,16 +40,23 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
 
   // Controls the nested RatingFormModal
   const [ratingFormVisible, setRatingFormVisible] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [initialReview, setInitialReview] = useState(null);
 
   const fetchReviews = useCallback(async () => {
     if (!dish?.id) return;
     setLoading(true);
     setError(null);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id || null;
+      setCurrentUserId(uid);
+
       const { data, error: err } = await supabase
         .from('reviews')
         .select(`
           id,
+          user_id,
           rating,
           comment,
           created_at,
@@ -63,9 +72,15 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
       if (err) throw err;
 
       // ── Dual-condition sort ─────────────────────────────────────────────────
-      // Primary:   trust_score DESC (highest rater power first)
-      // Secondary: created_at  DESC (newest first as tie-breaker)
+      // Primary:   ego-pinning (current user first)
+      // Secondary: trust_score DESC (highest rater power first)
+      // Tertiary:  created_at  DESC (newest first as tie-breaker)
       const sorted = (data || []).sort((a, b) => {
+        if (uid) {
+          if (a.user_id === uid && b.user_id !== uid) return -1;
+          if (b.user_id === uid && a.user_id !== uid) return 1;
+        }
+
         const powerA = a.profiles?.trust_score ?? 0;
         const powerB = b.profiles?.trust_score ?? 0;
         if (powerB !== powerA) return powerB - powerA;
@@ -91,6 +106,36 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     // Refresh reviews list and also trigger parent (rankings list) refresh
     fetchReviews();
     if (onRefreshParent) onRefreshParent();
+  };
+
+  const handleAddReviewPress = () => {
+    const existingReview = reviews.find(r => r.user_id === currentUserId);
+    if (existingReview) {
+      if (Platform.OS === 'web') {
+        if (window.confirm('זו מנה שכבר דירגת, תרצה לעדכן את הביקורת שלך?')) {
+          setInitialReview(existingReview);
+          setRatingFormVisible(true);
+        }
+      } else {
+        Alert.alert(
+          'כבר דירגת מנה זו',
+          'זו מנה שכבר דירגת, תרצה לעדכן את הביקורת שלך?',
+          [
+            { text: 'לא', style: 'cancel' },
+            { 
+              text: 'כן', 
+              onPress: () => {
+                setInitialReview(existingReview);
+                setRatingFormVisible(true);
+              }
+            }
+          ]
+        );
+      }
+    } else {
+      setInitialReview(null);
+      setRatingFormVisible(true);
+    }
   };
 
   const formatDate = (isoString) => {
@@ -234,7 +279,7 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
             <View style={styles.ctaContainer}>
               <TouchableOpacity
                 style={styles.writeReviewBtn}
-                onPress={() => setRatingFormVisible(true)}
+                onPress={handleAddReviewPress}
                 activeOpacity={0.8}
               >
                 <Text style={styles.writeReviewBtnText}>דרג בעצמך</Text>
@@ -249,6 +294,7 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
       <RatingFormModal
         visible={ratingFormVisible}
         dish={dish}
+        initialReview={initialReview}
         onClose={() => setRatingFormVisible(false)}
         onSaveSuccess={handleRatingSaved}
       />

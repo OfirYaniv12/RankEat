@@ -22,10 +22,10 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../database/supabaseClient';
-import { addReview } from '../database/queries';
+import { addReview, updateReview } from '../database/queries';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 
-export default function RatingFormModal({ visible, dish, onClose, onSaveSuccess }) {
+export default function RatingFormModal({ visible, dish, onClose, onSaveSuccess, initialReview = null }) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -37,12 +37,17 @@ export default function RatingFormModal({ visible, dish, onClose, onSaveSuccess 
   // Reset form every time the modal opens for a new dish
   useEffect(() => {
     if (visible) {
-      setRatingInput('');
-      setCommentInput('');
+      if (initialReview) {
+        setRatingInput(initialReview.rating ? initialReview.rating.toString() : '');
+        setCommentInput(initialReview.comment || '');
+      } else {
+        setRatingInput('');
+        setCommentInput('');
+      }
       setRatingError(false);
       setIsSubmitting(false);
     }
-  }, [visible, dish?.id]);
+  }, [visible, dish?.id, initialReview]);
 
   const handleRatingChange = (text) => {
     let formatted = text.replace(/[^0-9.]/g, '');
@@ -74,7 +79,11 @@ export default function RatingFormModal({ visible, dish, onClose, onSaveSuccess 
         return;
       }
 
-      await addReview({ dishId: dish.id, rating: val, comment: commentInput });
+      if (initialReview) {
+        await updateReview({ reviewId: initialReview.id, rating: val, comment: commentInput });
+      } else {
+        await addReview({ dishId: dish.id, rating: val, comment: commentInput });
+      }
       onClose();
       if (onSaveSuccess) onSaveSuccess();
     } catch (e) {
