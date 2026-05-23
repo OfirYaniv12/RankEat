@@ -48,48 +48,24 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
         .from('reviews')
         .select(`
           id,
-          user_id,
           rating,
           comment,
           created_at,
           profiles (
             first_name,
             last_name,
-            trust_score
+            trust_score,
+            review_count
           )
         `)
         .eq('dish_id', dish.id);
 
       if (err) throw err;
 
-      // Fetch review counts for each unique reviewer to determine active rank
-      const userIds = [...new Set((data || []).map(r => r.user_id).filter(Boolean))];
-      const countsMap = {};
-      if (userIds.length > 0) {
-        const { data: countData, error: countErr } = await supabase
-          .from('reviews')
-          .select('user_id')
-          .in('user_id', userIds);
-
-        if (!countErr && countData) {
-          countData.forEach(r => {
-            if (r.user_id) {
-              countsMap[r.user_id] = (countsMap[r.user_id] || 0) + 1;
-            }
-          });
-        }
-      }
-
-      // Map review_count to each review
-      const reviewsWithCounts = (data || []).map(r => ({
-        ...r,
-        review_count: countsMap[r.user_id] || 0
-      }));
-
       // ── Dual-condition sort ─────────────────────────────────────────────────
       // Primary:   trust_score DESC (highest rater power first)
       // Secondary: created_at  DESC (newest first as tie-breaker)
-      const sorted = reviewsWithCounts.sort((a, b) => {
+      const sorted = (data || []).sort((a, b) => {
         const powerA = a.profiles?.trust_score ?? 0;
         const powerB = b.profiles?.trust_score ?? 0;
         if (powerB !== powerA) return powerB - powerA;
@@ -141,7 +117,7 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     const name = formatReviewerName(item.profiles);
     const date = formatDate(item.created_at);
     const trustScore = item.profiles?.trust_score ?? 0;
-    const reviewCount = item.review_count ?? 0;
+    const reviewCount = item.profiles?.review_count ?? 0;
     const title = getUserTitle(trustScore, reviewCount);
 
     return (
