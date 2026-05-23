@@ -12,14 +12,16 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getRankedDishes } from '../database/queries';
-import { getRankedRestaurants } from '../database/SearchQueries';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
+import { supabase } from '../database/supabaseClient';
 import RatingFormModal from '../components/RatingFormModal';
 import DishReviewsModal from '../components/DishReviewsModal';
 
 export default function RankingsScreen({ navigation, route }) {
   const { user } = useAuth();
+  const { showAlert, showConfirm } = useAlert();
   const { searchType = 'dish', category, district, city, restaurants: initialRestaurants } = route.params || {};
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
@@ -31,6 +33,7 @@ export default function RankingsScreen({ navigation, route }) {
   // Unified rating form modal
   const [ratingFormVisible, setRatingFormVisible] = useState(false);
   const [selectedDish, setSelectedDish] = useState(null);
+  const [initialReview, setInitialReview] = useState(null);
 
   // Dish reviews modal
   const [reviewsModalVisible, setReviewsModalVisible] = useState(false);
@@ -75,9 +78,44 @@ export default function RankingsScreen({ navigation, route }) {
     }
   };
 
-  const handleOpenModal = (dish) => {
-    setSelectedDish(dish);
-    setRatingFormVisible(true);
+  const handleOpenModal = async (dish) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        showAlert({ title: 'התחברות דרושה', message: 'אתה חייב להיות מחובר כדי לדרג! אנא הירשם או התחבר.', type: 'warning', primaryButtonText: 'הבנתי' });
+        return;
+      }
+
+      const uid = session.user.id;
+      const { data: existingReview, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('dish_id', dish.id)
+        .eq('user_id', uid)
+        .maybeSingle();
+
+      if (existingReview) {
+        showConfirm({
+          title: 'כבר דירגת מנה זו',
+          message: 'זו מנה שכבר דירגת, תרצה לעדכן את הביקורת שלך?',
+          type: 'info',
+          primaryButtonText: 'עדכן דירוג',
+          secondaryButtonText: 'השאר ככה',
+          onConfirm: () => {
+            setInitialReview(existingReview);
+            setSelectedDish(dish);
+            setRatingFormVisible(true);
+          }
+        });
+      } else {
+        setInitialReview(null);
+        setSelectedDish(dish);
+        setRatingFormVisible(true);
+      }
+    } catch (e) {
+      console.error(e);
+      showAlert({ title: 'שגיאה', message: 'לא ניתן לבדוק דירוגים קודמים כעת', type: 'error', primaryButtonText: 'הבנתי' });
+    }
   };
 
   const handleOpenReviews = (dish) => {
@@ -453,6 +491,7 @@ export default function RankingsScreen({ navigation, route }) {
       <RatingFormModal
         visible={ratingFormVisible}
         dish={selectedDish}
+        initialReview={initialReview}
         onClose={() => setRatingFormVisible(false)}
         onSaveSuccess={() => { setLoading(true); loadRankings(); }}
       />

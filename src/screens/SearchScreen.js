@@ -16,6 +16,7 @@ import {
 import { getCategories, getDistricts, getCities, getRankedRestaurants } from '../database/SearchQueries';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 
 // Force RTL
 I18nManager.forceRTL(true);
@@ -28,6 +29,7 @@ const SEARCH_MODES = [
 
 export default function SearchScreen({ navigation }) {
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -297,11 +299,11 @@ export default function SearchScreen({ navigation }) {
     if (activeTab === 'dish') {
       // Legacy Dish Search Validation & Submit
       if (!selectedCategory) {
-        alert('יש לבחור קטגוריה');
+        showAlert({ title: 'שגיאה', message: 'יש לבחור קטגוריה', type: 'error', primaryButtonText: 'הבנתי' });
         return;
       }
       if (searchMode !== 'ארצי' && !selectedLocation) {
-        alert('יש לבחור מיקום או לשנות חיפוש לארצי');
+        showAlert({ title: 'שגיאה', message: 'יש לבחור מיקום או לשנות חיפוש לארצי', type: 'warning', primaryButtonText: 'הבנתי' });
         return;
       }
 
@@ -334,7 +336,7 @@ export default function SearchScreen({ navigation }) {
         });
       } catch (e) {
         console.error('Restaurant search submit error:', e);
-        alert('שגיאה בביצוע החיפוש');
+        showAlert({ title: 'שגיאה', message: 'שגיאה בביצוע החיפוש', type: 'error', primaryButtonText: 'הבנתי' });
       } finally {
         setLoading(false);
       }

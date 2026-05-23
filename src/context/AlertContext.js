@@ -102,15 +102,15 @@ export const AlertProvider = ({ children }) => {
 };
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalBox: { backgroundColor: COLORS.surface, width: 400, padding: SPACING.xl, borderRadius: RADIUS.lg, alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  modalBox: { backgroundColor: '#1E1E24', width: 400, padding: SPACING.xl, borderRadius: RADIUS.lg, alignItems: 'center', elevation: 20, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   modalBoxMobile: { width: '85%' },
   iconContainer: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.lg },
-  title: { fontSize: FONTS.h3, fontWeight: '700', color: COLORS.text, marginBottom: SPACING.md, textAlign: 'center' },
-  message: { fontSize: FONTS.body, color: COLORS.textSecondary, textAlign: 'center', marginBottom: SPACING.xl, lineHeight: 22 },
+  title: { fontSize: FONTS.h3, fontWeight: '800', color: '#FFFFFF', marginBottom: SPACING.md, textAlign: 'center' },
+  message: { fontSize: FONTS.body, color: '#A0AEC0', textAlign: 'center', marginBottom: SPACING.xl, lineHeight: 22 },
   buttonRow: { flexDirection: 'row', width: '100%', justifyContent: 'space-between', gap: SPACING.md },
-  primaryButton: { flex: 1, paddingVertical: SPACING.md, borderRadius: RADIUS.md, alignItems: 'center' },
-  primaryButtonText: { color: COLORS.white, fontSize: FONTS.body, fontWeight: '600' },
-  secondaryButton: { flex: 1, paddingVertical: SPACING.md, borderRadius: RADIUS.md, alignItems: 'center', backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border },
-  secondaryButtonText: { color: COLORS.text, fontSize: FONTS.body, fontWeight: '600' }
+  primaryButton: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.md, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5, shadowOffset: { width: 0, height: 3 } },
+  primaryButtonText: { color: '#FFFFFF', fontSize: FONTS.body, fontWeight: 'bold' },
+  secondaryButton: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.md, alignItems: 'center', backgroundColor: '#2D3748' },
+  secondaryButtonText: { color: '#E2E8F0', fontSize: FONTS.body, fontWeight: 'bold' }
 });
