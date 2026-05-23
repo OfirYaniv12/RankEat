@@ -53,16 +53,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    console.log('AuthContext useEffect started');
+    
+    // Safety fallback: if something hangs indefinitely, force loading to false
+    const fallbackTimer = setTimeout(() => {
+      console.log('AuthContext fallback timer triggered! Forcing loading=false');
+      setLoading(false);
+    }, 5000);
+
     // 1. Initial session check — handles the OAuth redirect hash on web
     const initializeAuth = async () => {
+      console.log('initializeAuth called');
       try {
+        console.log('Calling supabase.auth.getSession()...');
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('getSession completed. user:', session?.user?.email);
         if (session?.user) {
+          console.log('Calling refreshProfile from initializeAuth...');
           await refreshProfile(session.user);
+          console.log('refreshProfile from initializeAuth completed.');
         }
       } catch (error) {
         console.error('Auth Init Error:', error);
       } finally {
+        console.log('initializeAuth finally block. Setting loading=false');
         setLoading(false);
       }
     };
@@ -80,14 +94,19 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (session?.user) {
+        console.log('Calling refreshProfile from onAuthStateChange...');
         await refreshProfile(session.user);
+        console.log('refreshProfile from onAuthStateChange completed.');
       }
 
+      console.log('onAuthStateChange setting loading=false');
       setLoading(false);
     });
 
     return () => {
-      authListener.subscription.unsubscribe();
+      console.log('AuthContext cleanup running');
+      clearTimeout(fallbackTimer);
+      authListener?.subscription?.unsubscribe();
     };
   }, []);
 
