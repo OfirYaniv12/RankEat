@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator, StyleSheet, Platform, TouchableOpacity }
 import { initDatabase } from './src/database/schema';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/context/AuthContext';
+import { AlertProvider } from './src/context/AlertContext';
 import GlobalLayout from './src/components/GlobalLayout';
 import { NavigationContainer } from '@react-navigation/native';
 import { navigationRef } from './src/navigation/navigationRef';
@@ -93,13 +94,15 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <NavigationContainer ref={navigationRef}>
-            <GlobalLayout>
-              <AppNavigator />
-            </GlobalLayout>
-          </NavigationContainer>
-        </GestureHandlerRootView>
+        <AlertProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <NavigationContainer ref={navigationRef}>
+              <GlobalLayout>
+                <AppNavigator />
+              </GlobalLayout>
+            </NavigationContainer>
+          </GestureHandlerRootView>
+        </AlertProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

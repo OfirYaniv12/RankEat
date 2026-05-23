@@ -22,16 +22,10 @@ import { useAuth } from '../context/AuthContext';
 import { getCitiesByDistrict, getDistricts } from '../database/queries';
 import { COLORS, FONTS, RADIUS, SPACING } from '../theme';
 import { getUserTitle } from '../utils/userTitle';
-
-const showAlert = (title, message) => {
-  if (Platform.OS === 'web') {
-    window.alert(`${title}: ${message}`);
-  } else {
-    Alert.alert(title, message);
-  }
-};
+import { useAlert } from '../context/AlertContext';
 
 export default function ProfileScreen() {
+  const { showAlert, showConfirm } = useAlert();
   const { user } = useAuth();
   const { width } = useWindowDimensions();
   const navigation = useNavigation();
@@ -64,15 +58,10 @@ export default function ProfileScreen() {
   const [editComment, setEditComment] = useState('');
   const [ratingError, setRatingError] = useState(false);
 
-  // Delete Confirmation Modal State
-  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
-  const [reviewToDelete, setReviewToDelete] = useState(null);
-
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // Action B: Get user session directly from Supabase
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) {
         setLoading(false);
@@ -116,13 +105,11 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('Profile Fetch Error:', error);
     } finally {
-      // Action D: Always kill the spinner
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Action C: Run strictly once on mount
     fetchData();
     loadDistricts();
   }, []);
@@ -162,23 +149,18 @@ export default function ProfileScreen() {
   };
 
 
-  const handleDeleteReview = async () => {
-    const idToDelete = reviewToDelete;
-    setDeleteConfirmVisible(false);
-    
+  const handleDeleteReview = async (idToDelete) => {
     try {
       const { error } = await supabase.from('reviews').delete().eq('id', idToDelete);
       if (error) {
         console.error('Delete review DB error:', error);
-        showAlert('שגיאה', error.message);
+        showAlert({ title: 'שגיאה', message: error.message, type: 'error', primaryButtonText: 'הבנתי' });
       } else {
         setReviews(prev => prev.filter(r => r.id !== idToDelete));
       }
     } catch (error) {
       console.error('Delete review catch error:', error);
-      showAlert('שגיאה', 'מחיקת הדירוג נכשלה');
-    } finally {
-      setReviewToDelete(null);
+      showAlert({ title: 'שגיאה', message: 'מחיקת הדירוג נכשלה', type: 'error', primaryButtonText: 'הבנתי' });
     }
   };
 
@@ -190,13 +172,16 @@ export default function ProfileScreen() {
         .from('reviews')
         .update({ rating: parseFloat(editRating), comment: editComment })
         .eq('id', editingReview.id);
-      if (error) throw error;
-      
-      setReviews(prev => prev.map(r => r.id === editingReview.id ? { ...r, rating: parseFloat(editRating), comment: editComment } : r));
-      setEditReviewVisible(false);
+      if (error) {
+        console.error('Update review error:', error);
+        showAlert({ title: 'שגיאה', message: error.message, type: 'error', primaryButtonText: 'הבנתי' });
+      } else {
+        setReviews(prev => prev.map(r => r.id === editingReview.id ? { ...r, rating: parseFloat(editRating), comment: editComment } : r));
+        setEditReviewVisible(false);
+      }
     } catch (error) {
-      console.error('Update review error:', error);
-      showAlert('שגיאה', 'עדכון הדירוג נכשל');
+      console.error('Update review catch error:', error);
+      showAlert({ title: 'שגיאה', message: 'עדכון הדירוג נכשל', type: 'error', primaryButtonText: 'הבנתי' });
     } finally {
       setActionLoading(false);
     }
@@ -204,26 +189,27 @@ export default function ProfileScreen() {
 
   const handleUpdateProfile = async () => {
     if (!editFirstName.trim()) {
-      showAlert('שגיאה', 'אנא הזן שם פרטי');
+      showAlert({ title: 'שגיאה', message: 'אנא הזן שם פרטי', type: 'error', primaryButtonText: 'הבנתי' });
       return;
     }
     setActionLoading(true);
     try {
+      const updates = {
+        first_name: editFirstName,
+        last_name: editLastName,
+        district_id: selectedDistrictId,
+        city_id: selectedCityId,
+      };
       const { error } = await supabase
         .from('profiles')
-        .update({
-          first_name: editFirstName,
-          last_name: editLastName,
-          district_id: selectedDistrictId,
-          city_id: selectedCityId,
-        })
+        .update(updates)
         .eq('id', user.id);
       if (error) throw error;
-      await fetchData();
+      setProfileData(prev => ({ ...prev, ...updates }));
       setEditProfileVisible(false);
     } catch (error) {
       console.error('Update profile error:', error);
-      showAlert('שגיאה', 'עדכון הפרופיל נכשל');
+      showAlert({ title: 'שגיאה', message: 'עדכון הפרופיל נכשל', type: 'error', primaryButtonText: 'הבנתי' });
     } finally {
       setActionLoading(false);
     }
@@ -231,7 +217,6 @@ export default function ProfileScreen() {
 
   const renderReviewItem = ({ item }) => (
     <View style={styles.reviewCard}>
-      {/* Row 1: Header (Business Name - City & Rating) */}
       <View style={styles.cardHeader}>
         <Text style={styles.cardBusinessName} numberOfLines={1}>
           {item.dishes?.businesses?.name || 'מסעדה לא ידועה'} - {item.dishes?.businesses?.cities?.name || ''}
@@ -241,7 +226,6 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Row 2: Sub-header (Dish & Date) */}
       <View style={styles.cardSubHeader}>
         <Text style={styles.cardDishName} numberOfLines={1}>
           מנה: {item.dishes?.name || 'לא ידועה'}
@@ -251,18 +235,25 @@ export default function ProfileScreen() {
         </Text>
       </View>
 
-      {/* Row 3: Body (Comment) */}
       {item.comment ? (
         <View style={styles.cardBody}>
           <Text style={styles.cardReviewText}>{item.comment}</Text>
         </View>
       ) : null}
 
-      {/* Row 4: Footer (Actions) */}
       <View style={styles.cardFooter}>
         <TouchableOpacity 
           style={{ marginRight: 20 }}
-          onPress={() => { setReviewToDelete(item.id); setDeleteConfirmVisible(true); }}
+          onPress={() => {
+            showConfirm({
+              title: 'מחיקת דירוג',
+              message: 'האם אתה בטוח שברצונך למחוק את הדירוג?',
+              type: 'warning',
+              primaryButtonText: 'מחק דירוג',
+              secondaryButtonText: 'ביטול',
+              onConfirm: () => handleDeleteReview(item.id)
+            });
+          }}
           hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         >
           <MaterialIcons name="delete-outline" size={22} color="#FF5252" />
@@ -280,7 +271,6 @@ export default function ProfileScreen() {
           <MaterialIcons name="edit" size={22} color="#64748B" />
         </TouchableOpacity>
 
-        {/* Go to Business Button */}
         {item.dishes?.businesses?.id && (
           <TouchableOpacity
             style={styles.goToBusinessBtn}
@@ -307,7 +297,6 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-
       <FlatList
         data={reviews}
         keyExtractor={(item) => item.id.toString()}
@@ -359,7 +348,6 @@ export default function ProfileScreen() {
         }
       />
 
-      {/* Edit Profile Modal */}
       <Modal visible={editProfileVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBody}>
@@ -437,7 +425,6 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Edit Review Modal */}
       <Modal visible={editReviewVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBody}>
@@ -477,26 +464,6 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Delete Confirmation */}
-      <Modal visible={deleteConfirmVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.confirmBox}>
-            <MaterialIcons name="warning" size={40} color="#FF6B6B" />
-            <Text style={styles.confirmHeading}>מחיקת דירוג</Text>
-            <Text style={styles.confirmBody}>האם אתה בטוח?</Text>
-            <View style={styles.confirmActions}>
-              <TouchableOpacity style={styles.cancelDialogBtn} onPress={() => setDeleteConfirmVisible(false)}>
-                <Text style={styles.cancelBtnTxt}>ביטול</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteConfirmBtn} onPress={handleDeleteReview}>
-                <Text style={styles.deleteBtnTxt}>מחק</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Action Loading Overlay */}
       {actionLoading && (
         <View style={styles.actionOverlay}>
           <ActivityIndicator size="large" color="#ff7f50" />
@@ -576,7 +543,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    flexDirection: 'row', // Star on the left
+    flexDirection: 'row', 
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -638,15 +605,6 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 24, fontWeight: 'bold', color: '#FFF', marginBottom: 20 },
   ratingInp: { backgroundColor: '#0a0a0a', borderRadius: 16, paddingVertical: 18, color: '#FFF', fontSize: 44, fontWeight: 'bold', marginBottom: 15, width: 130, textAlign: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   commentInp: { backgroundColor: '#0a0a0a', borderRadius: 12, padding: 15, color: '#FFF', fontSize: 16, width: '100%', height: 120, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  confirmBox: { backgroundColor: '#161618', borderRadius: 24, padding: 30, width: '85%', maxWidth: 400, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  confirmHeading: { fontSize: 20, fontWeight: 'bold', color: '#FFF', marginVertical: 10 },
-  confirmBody: { fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 25 },
-  confirmActions: { flexDirection: 'row', gap: 15, width: '100%' },
-  cancelDialogBtn: { flex: 1, padding: 15, borderRadius: 12, backgroundColor: '#0a0a0a', alignItems: 'center' },
-  deleteConfirmBtn: { flex: 1, padding: 15, borderRadius: 12, backgroundColor: '#FF6B6B', alignItems: 'center' },
-  deleteBtnTxt: { color: '#FFF', fontWeight: 'bold' },
-  emptyView: { padding: 40, alignItems: 'center' },
-  emptyText: { color: '#64748B', fontSize: 16, textAlign: 'center' },
   actionOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9999, justifyContent: 'center', alignItems: 'center' },
   goToBusinessBtn: {
     flexDirection: 'row-reverse',

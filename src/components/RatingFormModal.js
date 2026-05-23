@@ -17,15 +17,15 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
-  Alert,
   useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../database/supabaseClient';
 import { addReview, updateReview } from '../database/queries';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
+import { useAlert } from '../context/AlertContext';
 
 export default function RatingFormModal({ visible, dish, onClose, onSaveSuccess, initialReview = null }) {
+  const { showAlert } = useAlert();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -63,7 +63,7 @@ export default function RatingFormModal({ visible, dish, onClose, onSaveSuccess,
     const val = parseFloat(ratingInput);
     if (isNaN(val) || val < 1 || val > 10) {
       const msg = 'אנא הזן ציון בין 1 ל-10';
-      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('שגיאה', msg);
+      showAlert({ title: 'שגיאה', message: msg, type: 'error', primaryButtonText: 'הבנתי' });
       return;
     }
 
@@ -72,9 +72,7 @@ export default function RatingFormModal({ visible, dish, onClose, onSaveSuccess,
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         const msg = 'אתה חייב להיות מחובר כדי לדרג! אנא הירשם או התחבר.';
-        Platform.OS === 'web'
-          ? window.alert(msg)
-          : Alert.alert('התחברות דרושה', msg);
+        showAlert({ title: 'התחברות דרושה', message: msg, type: 'warning', primaryButtonText: 'הבנתי' });
         setIsSubmitting(false);
         return;
       }
@@ -88,9 +86,7 @@ export default function RatingFormModal({ visible, dish, onClose, onSaveSuccess,
       if (onSaveSuccess) onSaveSuccess();
     } catch (e) {
       const errorMsg = e.message || 'לא ניתן לשמור את הדירוג כעת';
-      Platform.OS === 'web'
-        ? window.alert(`שגיאה: ${errorMsg}`)
-        : Alert.alert('שגיאה', errorMsg);
+      showAlert({ title: 'שגיאה', message: errorMsg, type: 'error', primaryButtonText: 'הבנתי' });
     } finally {
       setIsSubmitting(false);
     }

@@ -21,16 +21,16 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   useWindowDimensions,
-  Platform,
-  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../database/supabaseClient';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import RatingFormModal from './RatingFormModal';
 import { getUserTitle } from '../utils/userTitle';
+import { useAlert } from '../context/AlertContext';
 
 export default function DishReviewsModal({ visible, dish, onClose, onRefreshParent }) {
+  const { showConfirm } = useAlert();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -111,27 +111,17 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
   const handleAddReviewPress = () => {
     const existingReview = reviews.find(r => r.user_id === currentUserId);
     if (existingReview) {
-      if (Platform.OS === 'web') {
-        if (window.confirm('זו מנה שכבר דירגת, תרצה לעדכן את הביקורת שלך?')) {
+      showConfirm({
+        title: 'כבר דירגת מנה זו',
+        message: 'זו מנה שכבר דירגת, תרצה לעדכן את הביקורת שלך?',
+        type: 'info',
+        primaryButtonText: 'עדכן דירוג',
+        secondaryButtonText: 'השאר ככה',
+        onConfirm: () => {
           setInitialReview(existingReview);
           setRatingFormVisible(true);
         }
-      } else {
-        Alert.alert(
-          'כבר דירגת מנה זו',
-          'זו מנה שכבר דירגת, תרצה לעדכן את הביקורת שלך?',
-          [
-            { text: 'לא', style: 'cancel' },
-            { 
-              text: 'כן', 
-              onPress: () => {
-                setInitialReview(existingReview);
-                setRatingFormVisible(true);
-              }
-            }
-          ]
-        );
-      }
+      });
     } else {
       setInitialReview(null);
       setRatingFormVisible(true);
