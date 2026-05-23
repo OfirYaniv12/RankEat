@@ -48,6 +48,7 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
         .from('reviews')
         .select(`
           id,
+          user_id,
           rating,
           comment,
           created_at,
@@ -61,10 +62,34 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
 
       if (err) throw err;
 
+      // Fetch review counts for each unique reviewer to determine active rank
+      const userIds = [...new Set((data || []).map(r => r.user_id).filter(Boolean))];
+      const countsMap = {};
+      if (userIds.length > 0) {
+        const { data: countData, error: countErr } = await supabase
+          .from('reviews')
+          .select('user_id')
+          .in('user_id', userIds);
+
+        if (!countErr && countData) {
+          countData.forEach(r => {
+            if (r.user_id) {
+              countsMap[r.user_id] = (countsMap[r.user_id] || 0) + 1;
+            }
+          });
+        }
+      }
+
+      // Map review_count to each review
+      const reviewsWithCounts = (data || []).map(r => ({
+        ...r,
+        review_count: countsMap[r.user_id] || 0
+      }));
+
       // ── Dual-condition sort ─────────────────────────────────────────────────
       // Primary:   trust_score DESC (highest rater power first)
       // Secondary: created_at  DESC (newest first as tie-breaker)
-      const sorted = (data || []).sort((a, b) => {
+      const sorted = reviewsWithCounts.sort((a, b) => {
         const powerA = a.profiles?.trust_score ?? 0;
         const powerB = b.profiles?.trust_score ?? 0;
         if (powerB !== powerA) return powerB - powerA;
@@ -116,10 +141,8 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     const name = formatReviewerName(item.profiles);
     const date = formatDate(item.created_at);
     const trustScore = item.profiles?.trust_score ?? 0;
-    // review_count is not stored on the profiles table, so we pass 0 here.
-    // getUserTitle will correctly apply the trust_score-based tiers for
-    // suspicious users (rp < 1) and default to the base title for trusted ones.
-    const title = getUserTitle(trustScore, 0);
+    const reviewCount = item.review_count ?? 0;
+    const title = getUserTitle(trustScore, reviewCount);
 
     return (
       <View style={[styles.reviewCard, index === 0 && styles.reviewCardFirst]}>
