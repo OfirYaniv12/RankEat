@@ -18,8 +18,8 @@ export default function TermsOfServiceScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backBtn} 
@@ -79,7 +79,7 @@ export default function TermsOfServiceScreen() {
         </Text>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xl,
+    paddingTop: SPACING.xl + 60,
     paddingBottom: SPACING.md,
     width: '100%',
     zIndex: 10,
