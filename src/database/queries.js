@@ -290,15 +290,19 @@ export const updateProfile = async (userId, fields) => {
 
 // ─── STATISTICS ──────────────────────────────────────────────────────────────
 export const getHomeStats = async () => {
-  const [citiesRes, businessesRes, reviewsRes] = await Promise.all([
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('getHomeStats timeout')), 5000));
+
+  const fetchPromise = Promise.all([
     supabase.from('cities').select('*', { count: 'estimated', head: true }),
     supabase.from('businesses').select('*', { count: 'estimated', head: true }),
     supabase.from('reviews').select('*', { count: 'estimated', head: true }),
   ]);
 
-  if (citiesRes.error) throw new Error(`getHomeStats/cities: ${citiesRes.error.message}`);
-  if (businessesRes.error) throw new Error(`getHomeStats/businesses: ${businessesRes.error.message}`);
-  if (reviewsRes.error) throw new Error(`getHomeStats/reviews: ${reviewsRes.error.message}`);
+  const [citiesRes, businessesRes, reviewsRes] = await Promise.race([fetchPromise, timeout]);
+
+  if (citiesRes?.error) throw new Error(`getHomeStats/cities: ${citiesRes.error.message}`);
+  if (businessesRes?.error) throw new Error(`getHomeStats/businesses: ${businessesRes.error.message}`);
+  if (reviewsRes?.error) throw new Error(`getHomeStats/reviews: ${reviewsRes.error.message}`);
 
   return {
     cities: citiesRes.count || 0,
