@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   FlatList,
+  DeviceEventEmitter,
 } from 'react-native';
 import { navigationRef, navigate } from '../navigation/navigationRef';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
@@ -56,6 +57,10 @@ export default function GlobalLayout({ children }) {
 
   useEffect(() => {
     fetchDistricts();
+    const listener = DeviceEventEmitter.addListener('openSignUp', () => setSignUpModalVisible(true));
+    return () => {
+      if (listener) listener.remove();
+    };
   }, []);
 
   const fetchDistricts = async () => {
@@ -368,7 +373,7 @@ export default function GlobalLayout({ children }) {
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => {
                   setSignUpModalVisible(false); // close without wiping form
-                  navigate('TermsOfService');
+                  navigate('TermsOfService', { fromSignUp: true });
                 }}>
                   <Text style={styles.termsLink}>תנאי השימוש</Text>
                 </TouchableOpacity>
@@ -389,8 +394,14 @@ export default function GlobalLayout({ children }) {
               </View>
 
               <TouchableOpacity 
-                style={styles.googleBtn} 
-                onPress={handleGoogleLogin}
+                style={[styles.googleBtn, !termsAccepted && { opacity: 0.7 }]} 
+                onPress={() => {
+                  if (!termsAccepted) {
+                    setAuthError('יש לאשר את תנאי השימוש לפני ההרשמה עם גוגל');
+                    return;
+                  }
+                  handleGoogleLogin();
+                }}
               >
                 <AntDesign name="google" size={20} style={styles.googleIcon} />
                 <Text style={styles.googleBtnText}>המשך עם Google</Text>

@@ -1,23 +1,36 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, useWindowDimensions, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, useWindowDimensions, StatusBar, DeviceEventEmitter } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 export default function TermsOfServiceScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+
+  const handleBack = () => {
+    navigation.goBack();
+    if (route.params?.fromSignUp) {
+      DeviceEventEmitter.emit('openSignUp');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-          <MaterialIcons name="arrow-forward" size={28} color={COLORS.white} />
+        <TouchableOpacity 
+          style={styles.backBtn} 
+          onPress={handleBack} 
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>תנאי שימוש</Text>
-        <View style={{ width: 28 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView 
@@ -85,13 +98,24 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.05)',
     backgroundColor: COLORS.surface || '#161618',
   },
-  backButton: {
-    padding: SPACING.xs,
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface || '#161922',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border || '#252A38',
+  },
+  backIcon: {
+    fontSize: 20,
+    color: COLORS.textPrimary || '#F1F5F9',
   },
   headerTitle: {
     fontSize: FONTS.h3,
     fontWeight: '700',
-    color: COLORS.text || '#FFFFFF',
+    color: COLORS.textPrimary || '#FFFFFF',
   },
   contentContainer: {
     padding: SPACING.xl,
@@ -105,30 +129,30 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
-    color: COLORS.white || '#FFFFFF',
+    color: COLORS.textPrimary || '#FFFFFF',
     marginBottom: SPACING.sm,
-    textAlign: 'left',
+    textAlign: 'right',
   },
   lastUpdate: {
     fontSize: FONTS.small,
     color: COLORS.textSecondary || '#A0AEC0',
     marginBottom: SPACING.xl,
-    textAlign: 'left',
+    textAlign: 'right',
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.primary || '#FF6B35',
+    color: COLORS.accent || '#FF6B35',
     marginTop: SPACING.xl,
     marginBottom: SPACING.sm,
-    textAlign: 'left',
+    textAlign: 'right',
   },
   paragraph: {
     fontSize: 16,
     color: '#CBD5E1',
     lineHeight: 24,
     marginBottom: SPACING.md,
-    textAlign: 'left',
+    textAlign: 'right',
   },
   bold: {
     fontWeight: '700',
