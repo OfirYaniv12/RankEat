@@ -750,7 +750,8 @@ const styles = StyleSheet.create({
   },
   statsLeftStack: {
     alignItems: 'center',
-    width: 60,
+    minWidth: 70,
+    flexShrink: 0,
     marginTop: 4,  // Moved higher up to use empty space
     marginLeft: 40, // Increased to push even further right to clear 3-dots
     position: 'relative',
