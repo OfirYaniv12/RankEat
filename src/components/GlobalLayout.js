@@ -173,9 +173,6 @@ export default function GlobalLayout({ children }) {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: 'https://rank-eat-beta.vercel.app/'
-        }
       });
       if (error) throw error;
       

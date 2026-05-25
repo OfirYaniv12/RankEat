@@ -49,8 +49,9 @@ export const AuthProvider = ({ children }) => {
       setUser({ ...authUser, ...profile });
     } catch (e) {
       console.error('AuthContext: Profile fetch/create error:', e);
-      // Fallback: set the raw auth user so the app doesn't hard-block
-      setUser(authUser);
+      // Fallback: if we completely fail (e.g. database cleared), force log out to give a fresh start
+      await supabase.auth.signOut();
+      setUser(null);
     }
   };
 
