@@ -47,6 +47,7 @@ export default function GlobalLayout({ children }) {
     districtName: null,
     cityName: null
   });
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Custom Picker State
   const [selectionModalVisible, setSelectionModalVisible] = useState(false);
