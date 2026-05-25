@@ -242,14 +242,12 @@ export default function ProfileScreen() {
           <View style={styles.ratingPillSmall}>
             <Text style={styles.ratingValueSmall}>★ {item.rating.toFixed(1)}</Text>
           </View>
-          {item.likeCount > 0 && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 4 }}>
-              <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textSecondary }}>
-                {item.likeCount}
-              </Text>
-              <MaterialIcons name="favorite" size={16} color={COLORS.accent} />
-            </View>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 4 }}>
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textSecondary }}>
+              {item.likeCount}
+            </Text>
+            <MaterialIcons name="favorite" size={16} color={COLORS.textSecondary} />
+          </View>
         </View>
       </View>
 
