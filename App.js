@@ -7,6 +7,8 @@ import { AlertProvider } from './src/context/AlertContext';
 import GlobalLayout from './src/components/GlobalLayout';
 import { NavigationContainer } from '@react-navigation/native';
 import { navigationRef } from './src/navigation/navigationRef';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 // GestureHandlerRootView is native-only; skip it on web
 let GestureHandlerRootView;
@@ -99,6 +101,8 @@ export default function App() {
             <NavigationContainer ref={navigationRef}>
               <GlobalLayout>
                 <AppNavigator />
+                <Analytics />
+                <SpeedInsights />
               </GlobalLayout>
             </NavigationContainer>
           </GestureHandlerRootView>
