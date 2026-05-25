@@ -52,12 +52,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Single source of truth: onAuthStateChange fires INITIAL_SESSION on mount,
-    // which handles both the "no session" and "existing session" cases.
-    // We no longer need a separate initializeAuth() call, which was causing
-    // a race condition where refreshProfile() could be called twice.
+    // ─── Hard timeout safety net ──────────────────────────────────────────────
+    // If Supabase never fires onAuthStateChange (network error, init crash,
+    // etc.) this ensures the app NEVER hangs forever on the loading spinner.
+    // After 6 seconds, we force loading=false so the app opens unauthenticated.
+    const hangGuard = setTimeout(() => {
+      console.warn('AuthContext: onAuthStateChange did not fire within 6s. Forcing ready state.');
+      setLoading(false);
+    }, 6000);
+
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Listener fired — cancel the hang guard immediately
+        clearTimeout(hangGuard);
+
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setLoading(false);
@@ -75,6 +83,7 @@ export const AuthProvider = ({ children }) => {
     );
 
     return () => {
+      clearTimeout(hangGuard);
       authListener?.subscription?.unsubscribe();
     };
   }, []);
