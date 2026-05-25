@@ -1,16 +1,3 @@
-/**
- * DishReviewsModal — Shows all reviews for a given dish.
- *
- * Sorting (dual-condition):
- *   Primary:   reviewer's trust_score (descending — highest power first)
- *   Secondary: created_at (descending — newest first, as tie-breaker)
- *
- * Props:
- *   visible        {boolean}  - controls Modal visibility
- *   dish           {object}   - { id, name, weighted_score } of the dish
- *   onClose        {function} - called to dismiss this modal
- *   onRefreshParent{function} - called after a review is saved to refresh the parent list
- */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -21,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   useWindowDimensions,
+  TouchableWithoutFeedback
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../database/supabaseClient';
@@ -30,18 +18,28 @@ import { getUserTitle } from '../utils/userTitle';
 import { useAlert } from '../context/AlertContext';
 
 export default function DishReviewsModal({ visible, dish, onClose, onRefreshParent }) {
-  const { showConfirm } = useAlert();
+  const { showConfirm, showAlert } = useAlert();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
+  // Data states
+  const [rawReviews, setRawReviews] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Controls the nested RatingFormModal
-  const [ratingFormVisible, setRatingFormVisible] = useState(false);
+  // Auth & Rating
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [ratingFormVisible, setRatingFormVisible] = useState(false);
   const [initialReview, setInitialReview] = useState(null);
+
+  // Sorting
+  const [sortBy, setSortBy] = useState('default');
+  const [sortMenuVisible, setSortMenuVisible] = useState(false);
+
+  // Reporting
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportingReviewId, setReportingReviewId] = useState(null);
 
   const fetchReviews = useCallback(async () => {
     if (!dish?.id) return;
@@ -65,29 +63,21 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
             last_name,
             trust_score,
             review_count
-          )
+          ),
+          review_likes ( user_id )
         `)
         .eq('dish_id', dish.id);
 
       if (err) throw err;
 
-      // ── Dual-condition sort ─────────────────────────────────────────────────
-      // Primary:   ego-pinning (current user first)
-      // Secondary: trust_score DESC (highest rater power first)
-      // Tertiary:  created_at  DESC (newest first as tie-breaker)
-      const sorted = (data || []).sort((a, b) => {
-        if (uid) {
-          if (a.user_id === uid && b.user_id !== uid) return -1;
-          if (b.user_id === uid && a.user_id !== uid) return 1;
-        }
+      // Map to include likeCount and isLikedByMe
+      const mappedData = (data || []).map(r => ({
+        ...r,
+        likeCount: r.review_likes?.length || 0,
+        isLikedByMe: uid ? r.review_likes?.some(like => like.user_id === uid) : false,
+      }));
 
-        const powerA = a.profiles?.trust_score ?? 0;
-        const powerB = b.profiles?.trust_score ?? 0;
-        if (powerB !== powerA) return powerB - powerA;
-        return new Date(b.created_at) - new Date(a.created_at);
-      });
-
-      setReviews(sorted);
+      setRawReviews(mappedData);
     } catch (e) {
       console.error('DishReviewsModal fetchReviews error:', e);
       setError('שגיאה בטעינת הביקורות');
@@ -100,55 +90,162 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     if (visible && dish?.id) {
       fetchReviews();
     }
-  }, [visible, dish?.id]);
+  }, [visible, dish?.id, fetchReviews]);
+
+  // Apply sorting
+  useEffect(() => {
+    const sorted = [...rawReviews].sort((a, b) => {
+      // Ego-pinning: Always put current user first
+      if (currentUserId) {
+        if (a.user_id === currentUserId && b.user_id !== currentUserId) return -1;
+        if (b.user_id === currentUserId && a.user_id !== currentUserId) return 1;
+      }
+
+      if (sortBy === 'newest') {
+        return new Date(b.created_at) - new Date(a.created_at);
+      } else if (sortBy === 'highest') {
+        if (b.rating !== a.rating) return b.rating - a.rating;
+      } else if (sortBy === 'lowest') {
+        if (b.rating !== a.rating) return a.rating - b.rating;
+      } else if (sortBy === 'popular') {
+        if (b.likeCount !== a.likeCount) return b.likeCount - a.likeCount;
+      }
+
+      // Default tie-breaker (Trust Score DESC, then Date DESC)
+      const powerA = a.profiles?.trust_score ?? 0;
+      const powerB = b.profiles?.trust_score ?? 0;
+      if (powerB !== powerA) return powerB - powerA;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+
+    setReviews(sorted);
+  }, [rawReviews, sortBy, currentUserId]);
 
   const handleRatingSaved = () => {
-    // Refresh reviews list and also trigger parent (rankings list) refresh
     fetchReviews();
     if (onRefreshParent) onRefreshParent();
   };
 
-  const handleAddReviewPress = () => {
+  const requireAuth = (actionCallback) => {
     if (!currentUserId) {
       showConfirm({
         title: 'התחברות נדרשת',
-        message: 'יש להתחבר כדי לדרג מסעדות. האם ברצונך להתחבר עכשיו?',
+        message: 'כדי לדרג, לעשות לייק או לדווח יש להתחבר למערכת',
         type: 'info',
-        primaryButtonText: 'התחבר',
+        primaryButtonText: 'הבנתי',
         secondaryButtonText: 'ביטול',
         onConfirm: () => {
-          onClose(); // close the reviews modal
-          // We could emit 'openLogin' here if we had it, but standard is to just close the modal. The user can click login.
+          // close modal if desired, or just do nothing
         }
       });
-      return;
+      return false;
     }
+    actionCallback();
+    return true;
+  };
 
-    const existingReview = reviews.find(r => r.user_id === currentUserId);
-    if (existingReview) {
-      showConfirm({
-        title: 'כבר דירגת מנה זו',
-        message: 'זו מנה שכבר דירגת, תרצה לעדכן את הביקורת שלך?',
-        type: 'info',
-        primaryButtonText: 'עדכן דירוג',
-        secondaryButtonText: 'השאר ככה',
-        onConfirm: () => {
-          setInitialReview(existingReview);
-          setRatingFormVisible(true);
+  const handleAddReviewPress = () => {
+    requireAuth(() => {
+      const existingReview = reviews.find(r => r.user_id === currentUserId);
+      if (existingReview) {
+        showConfirm({
+          title: 'כבר דירגת מנה זו',
+          message: 'זו מנה שכבר דירגת, תרצה לעדכן את הביקורת שלך?',
+          type: 'info',
+          primaryButtonText: 'עדכן דירוג',
+          secondaryButtonText: 'השאר ככה',
+          onConfirm: () => {
+            setInitialReview(existingReview);
+            setRatingFormVisible(true);
+          }
+        });
+      } else {
+        setInitialReview(null);
+        setRatingFormVisible(true);
+      }
+    });
+  };
+
+  const handleToggleLike = async (reviewId, isCurrentlyLiked) => {
+    if (!requireAuth(() => {})) return;
+
+    // Optimistic UI update
+    setRawReviews(prev => prev.map(r => {
+      if (r.id === reviewId) {
+        return {
+          ...r,
+          isLikedByMe: !isCurrentlyLiked,
+          likeCount: r.likeCount + (isCurrentlyLiked ? -1 : 1)
+        };
+      }
+      return r;
+    }));
+
+    try {
+      if (isCurrentlyLiked) {
+        await supabase
+          .from('review_likes')
+          .delete()
+          .eq('review_id', reviewId)
+          .eq('user_id', currentUserId);
+      } else {
+        await supabase
+          .from('review_likes')
+          .insert({ review_id: reviewId, user_id: currentUserId });
+      }
+    } catch (e) {
+      console.error('Toggle like error:', e);
+      // Revert on error
+      setRawReviews(prev => prev.map(r => {
+        if (r.id === reviewId) {
+          return {
+            ...r,
+            isLikedByMe: isCurrentlyLiked,
+            likeCount: r.likeCount + (isCurrentlyLiked ? 1 : -1)
+          };
         }
-      });
-    } else {
-      setInitialReview(null);
-      setRatingFormVisible(true);
+        return r;
+      }));
+      showAlert({ title: 'שגיאה', message: 'פעולה זו נכשלה, נסה שוב', type: 'error' });
+    }
+  };
+
+  const openReportModal = (reviewId) => {
+    requireAuth(() => {
+      setReportingReviewId(reviewId);
+      setReportModalVisible(true);
+    });
+  };
+
+  const submitReport = async (reason) => {
+    setReportModalVisible(false);
+    if (!reportingReviewId || !currentUserId) return;
+
+    try {
+      const { error } = await supabase
+        .from('review_reports')
+        .insert({ review_id: reportingReviewId, user_id: currentUserId, reason });
+      
+      if (error) {
+        // PostgREST unique violation code
+        if (error.code === '23505') {
+          showAlert({ title: 'כבר דווח', message: 'כבר דיווחת על ביקורת זו בעבר.', type: 'info' });
+        } else {
+          throw error;
+        }
+      } else {
+        showAlert({ title: 'דיווח נשלח', message: 'תודה על הדיווח, הצוות שלנו יבדוק את הנושא בהקדם.', type: 'success' });
+      }
+    } catch (e) {
+      console.error('Report error:', e);
+      showAlert({ title: 'שגיאה', message: 'הדיווח לא נשלח עקב שגיאה.', type: 'error' });
     }
   };
 
   const formatDate = (isoString) => {
     if (!isoString) return '';
     return new Date(isoString).toLocaleDateString('he-IL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
+      day: '2-digit', month: '2-digit', year: 'numeric',
     });
   };
 
@@ -159,9 +256,15 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     return [first, last].filter(Boolean).join(' ') || 'אנונימי';
   };
 
-  const getRankNickname = (trustScore, reviewCount) => {
-    return getUserTitle(trustScore, reviewCount);
-  };
+  const sortOptions = [
+    { value: 'default', label: 'ברירת מחדל' },
+    { value: 'newest', label: 'החדשות ביותר' },
+    { value: 'highest', label: 'הגבוהות ביותר' },
+    { value: 'lowest', label: 'הנמוכות ביותר' },
+    { value: 'popular', label: 'הפופולריות ביותר' },
+  ];
+
+  const currentSortLabel = sortOptions.find(o => o.value === sortBy)?.label || 'ברירת מחדל';
 
   const renderReviewItem = ({ item, index }) => {
     const name = formatReviewerName(item.profiles);
@@ -172,7 +275,7 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
 
     return (
       <View style={[styles.reviewCard, index === 0 && styles.reviewCardFirst]}>
-        {/* Header row: Flexible wrapping layout */}
+        {/* Header */}
         <View style={styles.reviewHeader}>
           {/* Top-Right: name + user title + date underneath */}
           <View style={[styles.reviewerInfo, { flex: 1 }]}>
@@ -193,6 +296,35 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
         ) : (
           <Text style={styles.noComment}>ללא הערה</Text>
         )}
+
+        {/* Footer actions: Likes and Report */}
+        <View style={styles.reviewFooter}>
+          <TouchableOpacity 
+            style={styles.actionBtn} 
+            onPress={() => openReportModal(item.id)}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="flag" size={16} color={COLORS.textSecondary} />
+            <Text style={styles.actionText}>דווח</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionBtn} 
+            onPress={() => handleToggleLike(item.id, item.isLikedByMe)}
+            activeOpacity={0.7}
+          >
+            {item.likeCount > 0 && (
+              <Text style={[styles.likeCountText, item.isLikedByMe && { color: COLORS.accent }]}>
+                {item.likeCount}
+              </Text>
+            )}
+            <MaterialIcons 
+              name={item.isLikedByMe ? "favorite" : "favorite-border"} 
+              size={18} 
+              color={item.isLikedByMe ? COLORS.accent : COLORS.textSecondary} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -218,17 +350,14 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
 
             {/* ── Header ─────────────────────────────────────────────── */}
             <View style={styles.sheetHeader}>
-              {/* Close button — top-left */}
               <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
                 <Text style={styles.closeBtnText}>✕</Text>
               </TouchableOpacity>
 
-              {/* Dish and Restaurant name */}
               <Text style={styles.dishName} numberOfLines={2}>
                 {dish?.name || ''}{dish?.business_name ? ` - ${dish.business_name}` : ''}
               </Text>
 
-              {/* Overall score badge */}
               {dish?.weighted_score != null && (
                 <View style={styles.scoreBadge}>
                   <Text style={styles.scoreBadgeText}>
@@ -241,16 +370,55 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
               )}
             </View>
 
-            {/* ── Divider ────────────────────────────────────────────── */}
             <View style={styles.divider} />
 
-            {/* ── Reviews count ──────────────────────────────────────── */}
+            {/* ── Subheader: Count & Sort Dropdown ───────────────────── */}
             {!loading && !error && (
-              <Text style={styles.reviewCountLabel}>
-                {reviews.length > 0
-                  ? `${reviews.length} ביקורות`
-                  : 'אין ביקורות עדיין'}
-              </Text>
+              <View style={styles.subheader}>
+                
+                {/* Right side: Review Count */}
+                <Text style={styles.reviewCountLabel}>
+                  {reviews.length > 0
+                    ? `${reviews.length} ביקורות`
+                    : 'אין ביקורות'}
+                </Text>
+
+                {/* Left side: Sort Dropdown */}
+                {reviews.length > 0 && (
+                  <View style={styles.sortContainer}>
+                    <TouchableOpacity 
+                      style={styles.sortButton} 
+                      onPress={() => setSortMenuVisible(!sortMenuVisible)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialIcons name="keyboard-arrow-down" size={18} color={COLORS.textSecondary} />
+                      <Text style={styles.sortButtonText}>
+                        מיין לפי: <Text style={{color: COLORS.textPrimary}}>{currentSortLabel}</Text>
+                      </Text>
+                    </TouchableOpacity>
+
+                    {sortMenuVisible && (
+                      <View style={styles.sortMenu}>
+                        {sortOptions.map(option => (
+                          <TouchableOpacity 
+                            key={option.value} 
+                            style={styles.sortMenuItem}
+                            onPress={() => {
+                              setSortBy(option.value);
+                              setSortMenuVisible(false);
+                            }}
+                          >
+                            <Text style={[styles.sortMenuItemText, sortBy === option.value && styles.sortMenuItemTextActive]}>
+                              {option.label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+                
+              </View>
             )}
 
             {/* ── Body ───────────────────────────────────────────────── */}
@@ -300,19 +468,50 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
         onClose={() => setRatingFormVisible(false)}
         onSaveSuccess={handleRatingSaved}
       />
+
+      {/* ── Nested Report Modal ───────────────────────────────────────── */}
+      <Modal
+        visible={reportModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <TouchableOpacity style={styles.reportBackdrop} activeOpacity={1} onPress={() => setReportModalVisible(false)}>
+          <TouchableWithoutFeedback>
+            <View style={styles.reportModalBox}>
+              <Text style={styles.reportModalTitle}>סיבת הדיווח</Text>
+              <Text style={styles.reportModalSubtitle}>מדוע אתה מדווח על ביקורת זו?</Text>
+              
+              <TouchableOpacity style={styles.reportOptionBtn} onPress={() => submitReport('ספאם / תוכן פרסומי')}>
+                <Text style={styles.reportOptionText}>ספאם / תוכן פרסומי</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.reportOptionBtn} onPress={() => submitReport('תוכן פוגעני / בלתי הולם')}>
+                <Text style={styles.reportOptionText}>תוכן פוגעני / בלתי הולם</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.reportOptionBtn} onPress={() => submitReport('ביקורת מזויפת')}>
+                <Text style={styles.reportOptionText}>ביקורת מזויפת</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.reportOptionBtn} onPress={() => submitReport('אחר')}>
+                <Text style={styles.reportOptionText}>אחר</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.reportCancelBtn} onPress={() => setReportModalVisible(false)}>
+                <Text style={styles.reportCancelText}>ביטול</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  // ─── Backdrop ───────────────────────────────────────────────────────────────
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
   },
-
-  // ─── Sheet ──────────────────────────────────────────────────────────────────
   sheet: {
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: 28,
@@ -330,8 +529,6 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
     height: '90%',
   },
-
-  // ─── Header ─────────────────────────────────────────────────────────────────
   sheetHeader: {
     alignItems: 'center',
     paddingTop: SPACING.xl,
@@ -387,25 +584,77 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontSize: 13,
   },
-
-  // ─── Divider ────────────────────────────────────────────────────────────────
   divider: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.06)',
     marginHorizontal: SPACING.xl,
   },
-
+  subheader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    zIndex: 20,
+  },
   reviewCountLabel: {
     fontFamily: FONTS.semibold,
     fontSize: 14,
     color: COLORS.textSecondary,
-    textAlign: 'right',
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
   },
-
-  // ─── List ────────────────────────────────────────────────────────────────────
+  sortContainer: {
+    position: 'relative',
+    zIndex: 20,
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: RADIUS.pill,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  sortButtonText: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  sortMenu: {
+    position: 'absolute',
+    top: 36,
+    left: 0,
+    backgroundColor: COLORS.surfaceHover || '#22252A',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    width: 160,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 30,
+    overflow: 'hidden',
+  },
+  sortMenuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.03)',
+  },
+  sortMenuItemText: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'right',
+  },
+  sortMenuItemTextActive: {
+    fontFamily: FONTS.bold,
+    color: COLORS.accent,
+  },
   list: {
     flex: 1,
   },
@@ -414,8 +663,6 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.lg,
     flexGrow: 1,
   },
-
-  // ─── Review Card ────────────────────────────────────────────────────────────
   reviewCard: {
     backgroundColor: COLORS.bg,
     borderRadius: RADIUS.lg,
@@ -429,9 +676,8 @@ const styles = StyleSheet.create({
   },
   reviewHeader: {
     flexDirection: 'row-reverse',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: SPACING.md,
   },
   reviewerInfo: {
     alignItems: 'flex-end',
@@ -485,8 +731,32 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: SPACING.sm,
   },
-
-  // ─── Empty State ─────────────────────────────────────────────────────────────
+  reviewFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING.lg,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.04)',
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  actionText: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  likeCountText: {
+    fontFamily: FONTS.semibold,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
   emptyState: {
     flex: 1,
     alignItems: 'center',
@@ -507,8 +777,6 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     textAlign: 'center',
   },
-
-  // ─── Error / Loading ─────────────────────────────────────────────────────────
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -533,8 +801,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     fontSize: 14,
   },
-
-  // ─── CTA ────────────────────────────────────────────────────────────────────
   ctaContainer: {
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.lg,
@@ -554,5 +820,61 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontFamily: FONTS.bold,
     fontSize: 17,
+  },
+
+  // ─── Report Modal ────────────────────────────────────────────────────────────
+  reportBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  reportModalBox: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  reportModalTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 20,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  reportModalSubtitle: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+  },
+  reportOptionBtn: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: RADIUS.md,
+    paddingVertical: 14,
+    marginBottom: SPACING.sm,
+    alignItems: 'center',
+  },
+  reportOptionText: {
+    fontFamily: FONTS.semibold,
+    fontSize: 15,
+    color: COLORS.textPrimary,
+  },
+  reportCancelBtn: {
+    marginTop: SPACING.sm,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  reportCancelText: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: COLORS.textSecondary,
   },
 });
