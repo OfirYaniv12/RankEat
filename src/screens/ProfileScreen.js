@@ -238,7 +238,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Left Side: Score & Likes */}
-        <View style={{ alignItems: 'center', width: 50 }}>
+        <View style={{ alignItems: 'center', minWidth: 70, flexShrink: 0 }}>
           <View style={styles.ratingPillSmall}>
             <Text style={styles.ratingValueSmall}>★ {item.rating.toFixed(1)}</Text>
           </View>
@@ -247,7 +247,7 @@ export default function ProfileScreen() {
               <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textSecondary }}>
                 {item.likeCount}
               </Text>
-              <MaterialIcons name="favorite" size={14} color={COLORS.accent} />
+              <MaterialIcons name="favorite" size={16} color={COLORS.accent} />
             </View>
           )}
         </View>

@@ -338,7 +338,7 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
               )}
               <MaterialIcons 
                 name={item.isLikedByMe ? "favorite" : "favorite-border"} 
-                size={16} 
+                size={22} 
                 color={item.isLikedByMe ? COLORS.accent : COLORS.textSecondary} 
               />
             </TouchableOpacity>
@@ -791,29 +791,29 @@ const styles = StyleSheet.create({
   ratingPill: {
     backgroundColor: 'rgba(255, 107, 53, 0.15)',
     borderRadius: RADIUS.pill,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ratingPillText: {
     color: COLORS.accent,
     fontFamily: FONTS.bold,
-    fontSize: 14,
+    fontSize: 18,
   },
   compactLikeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
-    gap: 4,
+    marginTop: 10,
+    gap: 6,
     paddingVertical: 6,
     paddingHorizontal: 8,
   },
   likeCountText: {
     fontFamily: FONTS.semibold,
     color: COLORS.textSecondary,
-    fontSize: 13,
+    fontSize: 15,
   },
   reviewComment: {
     fontFamily: FONTS.regular,
