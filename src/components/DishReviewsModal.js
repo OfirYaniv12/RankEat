@@ -751,8 +751,9 @@ const styles = StyleSheet.create({
   statsLeftStack: {
     alignItems: 'center',
     width: 60,
-    marginTop: 18,
-    marginLeft: 28,
+    marginTop: 4,  // Moved higher up to use empty space
+    marginLeft: 40, // Increased to push even further right to clear 3-dots
+    position: 'relative',
   },
   cardReportBtn: {
     position: 'absolute',
@@ -792,9 +793,9 @@ const styles = StyleSheet.create({
   },
   ratingPill: {
     backgroundColor: 'rgba(255, 107, 53, 0.15)',
-    borderRadius: RADIUS.md, // Clean rectangular badge shape rather than full round pill
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    borderRadius: RADIUS.md, 
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -803,7 +804,7 @@ const styles = StyleSheet.create({
   ratingPillText: {
     color: COLORS.accent,
     fontFamily: FONTS.bold,
-    fontSize: 16,
+    fontSize: 18,
   },
   compactLikeBtn: {
     flexDirection: 'row',

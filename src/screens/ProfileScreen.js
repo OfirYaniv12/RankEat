@@ -243,10 +243,10 @@ export default function ProfileScreen() {
             <Text style={styles.ratingValueSmall}>★ {item.rating.toFixed(1)}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 6 }}>
-            <Text style={{ fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.textSecondary }}>
+            <Text style={{ fontFamily: FONTS.semibold, fontSize: 20, color: COLORS.textSecondary }}>
               {item.likeCount}
             </Text>
-            <MaterialIcons name="favorite" size={20} color={COLORS.textSecondary} />
+            <MaterialIcons name="favorite" size={26} color={COLORS.textSecondary} />
           </View>
         </View>
       </View>
