@@ -109,6 +109,21 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
   };
 
   const handleAddReviewPress = () => {
+    if (!currentUserId) {
+      showConfirm({
+        title: 'התחברות נדרשת',
+        message: 'יש להתחבר כדי לדרג מסעדות. האם ברצונך להתחבר עכשיו?',
+        type: 'info',
+        primaryButtonText: 'התחבר',
+        secondaryButtonText: 'ביטול',
+        onConfirm: () => {
+          onClose(); // close the reviews modal
+          // We could emit 'openLogin' here if we had it, but standard is to just close the modal. The user can click login.
+        }
+      });
+      return;
+    }
+
     const existingReview = reviews.find(r => r.user_id === currentUserId);
     if (existingReview) {
       showConfirm({
@@ -157,17 +172,14 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
 
     return (
       <View style={[styles.reviewCard, index === 0 && styles.reviewCardFirst]}>
-        {/* Header row: Spread out without stacking */}
+        {/* Header row: Flexible wrapping layout */}
         <View style={styles.reviewHeader}>
-          {/* Right: name + user title */}
-          <View style={styles.reviewerInfo}>
-            <Text style={styles.reviewerName} numberOfLines={1}>
-              {name} <Text style={styles.rankNickname}>({title})</Text>
-            </Text>
+          {/* Top-Right: name + user title + date underneath */}
+          <View style={[styles.reviewerInfo, { flex: 1 }]}>
+            <Text style={styles.reviewerName} numberOfLines={1}>{name}</Text>
+            <Text style={styles.rankNickname} numberOfLines={2}>{title}</Text>
+            <Text style={[styles.reviewDate, { marginHorizontal: 0, marginTop: 2 }]}>{date}</Text>
           </View>
-
-          {/* Middle: date */}
-          <Text style={styles.reviewDate}>{date}</Text>
 
           {/* Left: rating pill */}
           <View style={styles.ratingPill}>
@@ -436,6 +448,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontSize: 13,
     color: COLORS.accent,
+    textAlign: 'right',
   },
   reviewDate: {
     fontFamily: FONTS.regular,

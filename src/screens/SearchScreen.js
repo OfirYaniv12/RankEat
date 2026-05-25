@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontFamily: FONTS.regular,
-    fontSize: 14,
+    fontSize: 16,
     color: COLORS.textPrimary,
     textAlign: 'right',
     height: '100%',

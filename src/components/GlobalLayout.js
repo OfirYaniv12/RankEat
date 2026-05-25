@@ -191,6 +191,7 @@ export default function GlobalLayout({ children }) {
     try {
       await supabase.auth.signOut();
       setUser(null);
+      navigate('Home');
     } catch (e) {
       console.error('Logout error:', e);
     }
