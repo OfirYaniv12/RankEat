@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../database/supabaseClient';
-import { getProfile, upsertProfile } from '../database/queries';
+import { getProfile, upsertProfile, updateProfile } from '../database/queries';
 
 const AuthContext = createContext({});
 
@@ -18,19 +18,25 @@ export const AuthProvider = ({ children }) => {
     try {
       let profile = await getProfile(authUser.id);
 
-      // New Google user — no profile row yet. Create a minimal one.
-      if (!profile) {
+      // New Google user (no profile row) or existing user missing first_name
+      if (!profile || !profile.first_name) {
         const meta = authUser.user_metadata || {};
         const fullName = meta.full_name || meta.name || '';
-        const nameParts = fullName.trim().split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
+        const [firstName, ...rest] = fullName.trim().split(/\s+/);
+        const lastName = rest.join(' ');
 
-        await upsertProfile(authUser.id, {
-          first_name: firstName,
-          last_name: lastName,
-          trust_score: 1.0,
-        });
+        if (!profile) {
+          await upsertProfile(authUser.id, {
+            first_name: firstName || '',
+            last_name: lastName || '',
+            trust_score: 1.0,
+          });
+        } else {
+          await updateProfile(authUser.id, {
+            first_name: firstName || '',
+            last_name: lastName || '',
+          });
+        }
 
         profile = await getProfile(authUser.id);
       }

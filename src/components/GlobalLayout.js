@@ -217,9 +217,8 @@ export default function GlobalLayout({ children }) {
 
     setIsSubmittingAuth(true);
     try {
-      const nameParts = formData.fullName.trim().split(' ');
-      const firstName = nameParts[0];
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '—';
+      const [firstName, ...rest] = formData.fullName.trim().split(/\s+/);
+      const lastName = rest.join(' ');
 
       const newUser = await signUpUser({
         email: formData.email,
