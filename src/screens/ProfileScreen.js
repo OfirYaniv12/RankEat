@@ -95,13 +95,19 @@ export default function ProfileScreen() {
                 name
               )
             )
-          )
+          ),
+          review_likes ( user_id )
         `)
         .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
 
       if (rError) throw rError;
-      setReviews(reviewsData || []);
+
+      const mappedReviews = (reviewsData || []).map(r => ({
+        ...r,
+        likeCount: r.review_likes?.length || 0,
+      }));
+      setReviews(mappedReviews);
     } catch (error) {
       console.error('Profile Fetch Error:', error);
     } finally {
@@ -217,22 +223,34 @@ export default function ProfileScreen() {
 
   const renderReviewItem = ({ item }) => (
     <View style={styles.reviewCard}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardBusinessName} numberOfLines={1}>
-          {item.dishes?.businesses?.name || 'מסעדה לא ידועה'} - {item.dishes?.businesses?.cities?.name || ''}
-        </Text>
-        <View style={styles.ratingPillSmall}>
-          <Text style={styles.ratingValueSmall}>★ {item.rating.toFixed(1)}</Text>
+      <View style={[styles.cardHeader, { alignItems: 'flex-start' }]}>
+        {/* Right Side: Date, Business, and Dish Name */}
+        <View style={{ flex: 1, alignItems: 'flex-end', marginLeft: 16 }}>
+          <Text style={[styles.cardDate, { marginBottom: 4, marginTop: 0 }]}>
+            {new Date(item.created_at).toLocaleDateString('he-IL')}
+          </Text>
+          <Text style={[styles.cardBusinessName, { textAlign: 'right' }]} numberOfLines={2}>
+            {item.dishes?.businesses?.name || 'מסעדה לא ידועה'} - {item.dishes?.businesses?.cities?.name || ''}
+          </Text>
+          <Text style={[styles.cardDishName, { textAlign: 'right', marginTop: 2 }]} numberOfLines={2}>
+            מנה: {item.dishes?.name || 'לא ידועה'}
+          </Text>
         </View>
-      </View>
 
-      <View style={styles.cardSubHeader}>
-        <Text style={styles.cardDishName} numberOfLines={1}>
-          מנה: {item.dishes?.name || 'לא ידועה'}
-        </Text>
-        <Text style={styles.cardDate}>
-          {new Date(item.created_at).toLocaleDateString('he-IL')}
-        </Text>
+        {/* Left Side: Score & Likes */}
+        <View style={{ alignItems: 'center', width: 50 }}>
+          <View style={styles.ratingPillSmall}>
+            <Text style={styles.ratingValueSmall}>★ {item.rating.toFixed(1)}</Text>
+          </View>
+          {item.likeCount > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 4 }}>
+              <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textSecondary }}>
+                {item.likeCount}
+              </Text>
+              <MaterialIcons name="favorite" size={14} color={COLORS.accent} />
+            </View>
+          )}
+        </View>
       </View>
 
       {item.comment ? (

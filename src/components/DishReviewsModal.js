@@ -281,39 +281,45 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     return (
       <View style={[styles.reviewCard, index === 0 && styles.reviewCardFirst]}>
         
-        {/* Header row: Name/Info on right, Stats (3-dots, Score, Like) on left */}
+        {/* Absolute Top-Left Report Button */}
+        <TouchableOpacity 
+          style={styles.cardReportBtn} 
+          onPress={() => setCardMenuOpenId(cardMenuOpenId === item.id ? null : item.id)}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="more-vert" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+
+        {/* Context Menu Overlay */}
+        {cardMenuOpenId === item.id && (
+          <View style={styles.cardContextMenu}>
+            <TouchableOpacity 
+              style={styles.cardContextItem} 
+              onPress={() => openReportModal(item.id)}
+            >
+              <MaterialIcons name="flag" size={16} color={COLORS.textSecondary} />
+              <Text style={styles.cardContextText}>דווח</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Header row: Name/Info on right, Stats (Score, Like) on left */}
         <View style={styles.reviewHeader}>
-          {/* Right Side: Name & Title */}
+          {/* Right Side: Name & Title (Row-Reverse for RTL) */}
           <View style={styles.reviewerInfo}>
-            <Text style={styles.reviewerName} numberOfLines={1}>{name}</Text>
-            <Text style={styles.rankNickname} numberOfLines={2}>{title}</Text>
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+              <Text style={styles.reviewerName} numberOfLines={1}>{name}</Text>
+              {title ? (
+                <View style={styles.rankBadge}>
+                  <Text style={styles.rankNickname} numberOfLines={1}>{title}</Text>
+                </View>
+              ) : null}
+            </View>
             <Text style={styles.reviewDate}>{date}</Text>
           </View>
 
-          {/* Left Side: Vertical stack of Dots, Score, and Likes */}
+          {/* Left Side: Score, and Likes */}
           <View style={styles.statsLeftStack}>
-            {/* 3-Dots Overlay Trigger */}
-            <TouchableOpacity 
-              style={styles.cardReportBtn} 
-              onPress={() => setCardMenuOpenId(cardMenuOpenId === item.id ? null : item.id)}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="more-vert" size={20} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-
-            {/* Context Menu Overlay */}
-            {cardMenuOpenId === item.id && (
-              <View style={styles.cardContextMenu}>
-                <TouchableOpacity 
-                  style={styles.cardContextItem} 
-                  onPress={() => openReportModal(item.id)}
-                >
-                  <MaterialIcons name="flag" size={16} color={COLORS.textSecondary} />
-                  <Text style={styles.cardContextText}>דווח</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
             {/* Score Pill */}
             <View style={styles.ratingPill}>
               <Text style={styles.ratingPillText}>★ {item.rating.toFixed(1)}</Text>
@@ -712,6 +718,7 @@ const styles = StyleSheet.create({
   reviewerInfo: {
     flex: 1,
     alignItems: 'flex-end',
+    marginRight: 24, // Space for 3-dots if needed, but 3-dots is on left.
     marginLeft: SPACING.md,
   },
   reviewerName: {
@@ -720,54 +727,65 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     textAlign: 'right',
   },
+  rankBadge: {
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 53, 0.2)',
+  },
   rankNickname: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
+    fontFamily: FONTS.semibold,
+    fontSize: 12,
     color: COLORS.accent,
-    textAlign: 'right',
+    textAlign: 'center',
   },
   reviewDate: {
     fontFamily: FONTS.regular,
     fontSize: 12,
     color: COLORS.textSecondary,
-    marginTop: 4,
+    marginTop: 6,
   },
   statsLeftStack: {
     alignItems: 'center',
     width: 60,
-    position: 'relative',
+    marginTop: 20, // Push down slightly so it's independent of absolute 3-dots
   },
   cardReportBtn: {
-    padding: 4,
-    marginBottom: 8,
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    padding: 8,
+    zIndex: 10,
   },
   cardContextMenu: {
     position: 'absolute',
-    top: 30,
-    left: 0,
+    top: 40,
+    left: 12,
     backgroundColor: COLORS.surfaceHover || '#22252A',
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
-    width: 90,
+    width: 100,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 5,
     zIndex: 50,
   },
   cardContextItem: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 6,
+    justifyContent: 'flex-start',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
   },
   cardContextText: {
     fontFamily: FONTS.semibold,
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.textSecondary,
   },
   ratingPill: {
@@ -789,28 +807,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 8,
     gap: 4,
-    paddingVertical: 4,
+    paddingVertical: 6,
     paddingHorizontal: 8,
   },
   likeCountText: {
     fontFamily: FONTS.semibold,
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 13,
   },
   reviewComment: {
     fontFamily: FONTS.regular,
-    fontSize: 14,
-    color: '#D0D0D8',
+    fontSize: 15,
+    color: '#E0E0E8',
     textAlign: 'right',
-    lineHeight: 21,
-    marginTop: SPACING.md,
+    lineHeight: 22,
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
   },
   noComment: {
     fontFamily: FONTS.regular,
     fontSize: 14,
     color: COLORS.textSecondary,
     textAlign: 'right',
-    marginTop: SPACING.md,
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
     fontStyle: 'italic',
   },
   emptyState: {
