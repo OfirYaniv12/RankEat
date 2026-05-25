@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   TouchableWithoutFeedback
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../database/supabaseClient';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
@@ -20,6 +21,7 @@ import { useAlert } from '../context/AlertContext';
 export default function DishReviewsModal({ visible, dish, onClose, onRefreshParent }) {
   const { showConfirm, showAlert } = useAlert();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isMobile = width < 768;
 
   // Data states
@@ -36,6 +38,9 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
   // Sorting
   const [sortBy, setSortBy] = useState('default');
   const [sortMenuVisible, setSortMenuVisible] = useState(false);
+
+  // Card Context Menu
+  const [cardMenuOpenId, setCardMenuOpenId] = useState(null);
 
   // Reporting
   const [reportModalVisible, setReportModalVisible] = useState(false);
@@ -89,6 +94,8 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
   useEffect(() => {
     if (visible && dish?.id) {
       fetchReviews();
+      setCardMenuOpenId(null);
+      setSortMenuVisible(false);
     }
   }, [visible, dish?.id, fetchReviews]);
 
@@ -134,9 +141,7 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
         type: 'info',
         primaryButtonText: 'הבנתי',
         secondaryButtonText: 'ביטול',
-        onConfirm: () => {
-          // close modal if desired, or just do nothing
-        }
+        onConfirm: () => {}
       });
       return false;
     }
@@ -212,6 +217,7 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
 
   const openReportModal = (reviewId) => {
     requireAuth(() => {
+      setCardMenuOpenId(null);
       setReportingReviewId(reviewId);
       setReportModalVisible(true);
     });
@@ -227,7 +233,6 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
         .insert({ review_id: reportingReviewId, user_id: currentUserId, reason });
       
       if (error) {
-        // PostgREST unique violation code
         if (error.code === '23505') {
           showAlert({ title: 'כבר דווח', message: 'כבר דיווחת על ביקורת זו בעבר.', type: 'info' });
         } else {
@@ -274,53 +279,63 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     const title = getUserTitle(trustScore, reviewCount);
 
     return (
-      <View style={[styles.reviewCard, index === 0 && styles.reviewCardFirst, { position: 'relative' }]}>
+      <View style={[styles.reviewCard, index === 0 && styles.reviewCardFirst]}>
         
-        {/* Absolute Top-Left Report Button */}
-        <TouchableOpacity 
-          style={styles.cardReportBtn} 
-          onPress={() => openReportModal(item.id)}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons name="more-vert" size={20} color={COLORS.textSecondary} />
-        </TouchableOpacity>
-
-        {/* Header row: Compact wrapping layout */}
+        {/* Header row: Name/Info on right, Stats (3-dots, Score, Like) on left */}
         <View style={styles.reviewHeader}>
-          {/* Right Side: Score/Like Column + Name Column */}
-          <View style={{ flexDirection: 'row-reverse', flex: 1, alignItems: 'flex-start' }}>
-            
-            {/* Score & Like */}
-            <View style={{ alignItems: 'center', marginLeft: 16 }}>
-              <View style={styles.ratingPill}>
-                <Text style={styles.ratingPillText}>★ {item.rating.toFixed(1)}</Text>
+          {/* Right Side: Name & Title */}
+          <View style={styles.reviewerInfo}>
+            <Text style={styles.reviewerName} numberOfLines={1}>{name}</Text>
+            <Text style={styles.rankNickname} numberOfLines={2}>{title}</Text>
+            <Text style={styles.reviewDate}>{date}</Text>
+          </View>
+
+          {/* Left Side: Vertical stack of Dots, Score, and Likes */}
+          <View style={styles.statsLeftStack}>
+            {/* 3-Dots Overlay Trigger */}
+            <TouchableOpacity 
+              style={styles.cardReportBtn} 
+              onPress={() => setCardMenuOpenId(cardMenuOpenId === item.id ? null : item.id)}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="more-vert" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+
+            {/* Context Menu Overlay */}
+            {cardMenuOpenId === item.id && (
+              <View style={styles.cardContextMenu}>
+                <TouchableOpacity 
+                  style={styles.cardContextItem} 
+                  onPress={() => openReportModal(item.id)}
+                >
+                  <MaterialIcons name="flag" size={16} color={COLORS.textSecondary} />
+                  <Text style={styles.cardContextText}>דווח</Text>
+                </TouchableOpacity>
               </View>
-              
-              <TouchableOpacity 
-                style={styles.compactLikeBtn} 
-                onPress={() => handleToggleLike(item.id, item.isLikedByMe)}
-                activeOpacity={0.7}
-              >
-                {item.likeCount > 0 && (
-                  <Text style={[styles.likeCountText, item.isLikedByMe && { color: COLORS.accent }, { fontSize: 12 }]}>
-                    {item.likeCount}
-                  </Text>
-                )}
-                <MaterialIcons 
-                  name={item.isLikedByMe ? "favorite" : "favorite-border"} 
-                  size={16} 
-                  color={item.isLikedByMe ? COLORS.accent : COLORS.textSecondary} 
-                />
-              </TouchableOpacity>
-            </View>
+            )}
 
-            {/* Name & Title */}
-            <View style={[styles.reviewerInfo, { flex: 1, marginLeft: 0 }]}>
-              <Text style={styles.reviewerName} numberOfLines={1}>{name}</Text>
-              <Text style={styles.rankNickname} numberOfLines={2}>{title}</Text>
-              <Text style={[styles.reviewDate, { marginHorizontal: 0, marginTop: 2 }]}>{date}</Text>
+            {/* Score Pill */}
+            <View style={styles.ratingPill}>
+              <Text style={styles.ratingPillText}>★ {item.rating.toFixed(1)}</Text>
             </View>
-
+            
+            {/* Like Button */}
+            <TouchableOpacity 
+              style={styles.compactLikeBtn} 
+              onPress={() => handleToggleLike(item.id, item.isLikedByMe)}
+              activeOpacity={0.7}
+            >
+              {item.likeCount > 0 && (
+                <Text style={[styles.likeCountText, item.isLikedByMe && { color: COLORS.accent }]}>
+                  {item.likeCount}
+                </Text>
+              )}
+              <MaterialIcons 
+                name={item.isLikedByMe ? "favorite" : "favorite-border"} 
+                size={16} 
+                color={item.isLikedByMe ? COLORS.accent : COLORS.textSecondary} 
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -348,114 +363,118 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
         visible={visible}
         onRequestClose={onClose}
       >
-        <View style={styles.backdrop}>
-          <View style={[styles.sheet, isMobile && styles.sheetMobile]}>
+        <TouchableWithoutFeedback onPress={() => { setSortMenuVisible(false); setCardMenuOpenId(null); }}>
+          <View style={[styles.backdrop, isMobile ? styles.backdropMobile : styles.backdropDesktop]}>
+            <View style={[styles.sheet, isMobile && styles.sheetMobile]}>
 
-            {/* ── Header ─────────────────────────────────────────────── */}
-            <View style={styles.sheetHeader}>
-              <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-                <Text style={styles.closeBtnText}>✕</Text>
-              </TouchableOpacity>
+              {/* ── Header ─────────────────────────────────────────────── */}
+              <View style={styles.sheetHeader}>
+                <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
+                  <Text style={styles.closeBtnText}>✕</Text>
+                </TouchableOpacity>
 
-              {/* Sort By Dropdown (Top Right) */}
-              {reviews.length > 0 && (
-                <View style={[styles.sortContainer, { position: 'absolute', top: SPACING.lg, right: SPACING.lg }]}>
-                  <TouchableOpacity 
-                    style={styles.sortButton} 
-                    onPress={() => setSortMenuVisible(!sortMenuVisible)}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialIcons name="keyboard-arrow-down" size={18} color={COLORS.textSecondary} />
-                    <Text style={styles.sortButtonText}>
-                      מיין לפי: <Text style={{color: COLORS.textPrimary}}>{currentSortLabel}</Text>
-                    </Text>
-                  </TouchableOpacity>
+                <Text style={[styles.dishName, { marginTop: 32 }]} numberOfLines={2}>
+                  {dish?.name || ''}{dish?.business_name ? ` - ${dish.business_name}` : ''}
+                </Text>
 
-                  {sortMenuVisible && (
-                    <View style={styles.sortMenu}>
-                      {sortOptions.map(option => (
-                        <TouchableOpacity 
-                          key={option.value} 
-                          style={styles.sortMenuItem}
-                          onPress={() => {
-                            setSortBy(option.value);
-                            setSortMenuVisible(false);
-                          }}
-                        >
-                          <Text style={[styles.sortMenuItemText, sortBy === option.value && styles.sortMenuItemTextActive]}>
-                            {option.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 12 }}>
+                  {dish?.weighted_score != null && (
+                    <View style={styles.scoreBadge}>
+                      <Text style={styles.scoreBadgeText}>
+                        ★ {typeof dish.weighted_score === 'number'
+                          ? dish.weighted_score.toFixed(1)
+                          : dish.weighted_score}
+                      </Text>
+                      <Text style={styles.scoreBadgeLabel}>ציון ממוצע</Text>
                     </View>
                   )}
+                  
+                  {/* Total Reviews Count next to score */}
+                  {!loading && !error && (
+                    <Text style={styles.headerReviewCount}>
+                      {reviews.length > 0 ? `${reviews.length} ביקורות` : 'אין ביקורות'}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* ── Dedicated Sorting Bar ──────────────────────────────── */}
+              {reviews.length > 0 && !loading && !error && (
+                <View style={styles.sortBar}>
+                  <View style={{ position: 'relative', zIndex: 20 }}>
+                    <TouchableOpacity 
+                      style={styles.sortButton} 
+                      onPress={(e) => { e.stopPropagation(); setSortMenuVisible(!sortMenuVisible); setCardMenuOpenId(null); }}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialIcons name="keyboard-arrow-down" size={18} color={COLORS.textSecondary} />
+                      <Text style={styles.sortButtonText}>
+                        מיין לפי: <Text style={{color: COLORS.textPrimary}}>{currentSortLabel}</Text>
+                      </Text>
+                    </TouchableOpacity>
+
+                    {sortMenuVisible && (
+                      <View style={styles.sortMenu}>
+                        {sortOptions.map(option => (
+                          <TouchableOpacity 
+                            key={option.value} 
+                            style={styles.sortMenuItem}
+                            onPress={() => {
+                              setSortBy(option.value);
+                              setSortMenuVisible(false);
+                            }}
+                          >
+                            <Text style={[styles.sortMenuItemText, sortBy === option.value && styles.sortMenuItemTextActive]}>
+                              {option.label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 </View>
               )}
 
-              <Text style={[styles.dishName, { marginTop: 32 }]} numberOfLines={2}>
-                {dish?.name || ''}{dish?.business_name ? ` - ${dish.business_name}` : ''}
-              </Text>
+              {/* ── Body ───────────────────────────────────────────────── */}
+              {loading ? (
+                <View style={styles.centered}>
+                  <ActivityIndicator size="large" color={COLORS.accent} />
+                </View>
+              ) : error ? (
+                <View style={styles.centered}>
+                  <Text style={styles.errorText}>{error}</Text>
+                  <TouchableOpacity onPress={fetchReviews} style={styles.retryBtn}>
+                    <Text style={styles.retryBtnText}>נסה שוב</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <FlatList
+                  data={reviews}
+                  keyExtractor={(r) => r.id.toString()}
+                  renderItem={renderReviewItem}
+                  ListEmptyComponent={renderEmpty}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.listContent}
+                  style={styles.list}
+                />
+              )}
 
-              <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 12 }}>
-                {dish?.weighted_score != null && (
-                  <View style={styles.scoreBadge}>
-                    <Text style={styles.scoreBadgeText}>
-                      ★ {typeof dish.weighted_score === 'number'
-                        ? dish.weighted_score.toFixed(1)
-                        : dish.weighted_score}
-                    </Text>
-                    <Text style={styles.scoreBadgeLabel}>ציון ממוצע</Text>
-                  </View>
-                )}
-                
-                {/* Total Reviews Count next to score */}
-                {!loading && !error && (
-                  <Text style={styles.headerReviewCount}>
-                    {reviews.length > 0 ? `${reviews.length} ביקורות` : 'אין ביקורות'}
-                  </Text>
-                )}
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            {/* ── Body ───────────────────────────────────────────────── */}
-            {loading ? (
-              <View style={styles.centered}>
-                <ActivityIndicator size="large" color={COLORS.accent} />
-              </View>
-            ) : error ? (
-              <View style={styles.centered}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity onPress={fetchReviews} style={styles.retryBtn}>
-                  <Text style={styles.retryBtnText}>נסה שוב</Text>
+              {/* ── Write a Review CTA ─────────────────────────────────── */}
+              <View style={[styles.ctaContainer, { paddingBottom: Math.max(insets.bottom, SPACING.lg) }]}>
+                <TouchableOpacity
+                  style={styles.writeReviewBtn}
+                  onPress={handleAddReviewPress}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.writeReviewBtnText}>דרג בעצמך</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <FlatList
-                data={reviews}
-                keyExtractor={(r) => r.id.toString()}
-                renderItem={renderReviewItem}
-                ListEmptyComponent={renderEmpty}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.listContent}
-                style={styles.list}
-              />
-            )}
 
-            {/* ── Write a Review CTA ─────────────────────────────────── */}
-            <View style={styles.ctaContainer}>
-              <TouchableOpacity
-                style={styles.writeReviewBtn}
-                onPress={handleAddReviewPress}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.writeReviewBtnText}>דרג בעצמך</Text>
-              </TouchableOpacity>
             </View>
-
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* ── Nested RatingFormModal ────────────────────────────────────── */}
@@ -508,7 +527,13 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+  backdropMobile: {
     justifyContent: 'flex-end',
+  },
+  backdropDesktop: {
+    justifyContent: 'center',
+    padding: SPACING.xxl,
   },
   sheet: {
     backgroundColor: COLORS.surface,
@@ -516,16 +541,20 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    height: '85%',
     width: '100%',
     alignSelf: 'center',
     maxWidth: 680,
-    paddingBottom: 0,
     overflow: 'hidden',
+    height: '85%',
+    maxHeight: 800,
+    borderRadius: RADIUS.xl, // Applies to desktop
   },
   sheetMobile: {
     maxWidth: '100%',
     height: '90%',
+    borderRadius: 0, // Override for mobile
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
   },
   sheetHeader: {
     alignItems: 'center',
@@ -533,6 +562,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.lg,
     position: 'relative',
+    zIndex: 10,
   },
   closeBtn: {
     position: 'absolute',
@@ -592,8 +622,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
   },
-  sortContainer: {
-    position: 'absolute',
+  sortBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.sm,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
     zIndex: 20,
   },
   sortButton: {
@@ -615,7 +652,7 @@ const styles = StyleSheet.create({
   sortMenu: {
     position: 'absolute',
     top: 36,
-    right: 0,
+    left: 0,
     backgroundColor: COLORS.surfaceHover || '#22252A',
     borderRadius: RADIUS.md,
     borderWidth: 1,
@@ -647,11 +684,11 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
-    marginTop: SPACING.md,
   },
   listContent: {
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.lg,
+    paddingTop: SPACING.md,
     flexGrow: 1,
   },
   reviewCard: {
@@ -661,6 +698,8 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
+    position: 'relative',
+    zIndex: 1,
   },
   reviewCardFirst: {
     marginTop: SPACING.sm,
@@ -671,8 +710,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   reviewerInfo: {
+    flex: 1,
     alignItems: 'flex-end',
-    flexShrink: 1,
     marginLeft: SPACING.md,
   },
   reviewerName: {
@@ -689,22 +728,60 @@ const styles = StyleSheet.create({
   },
   reviewDate: {
     fontFamily: FONTS.regular,
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.textSecondary,
-    marginHorizontal: SPACING.md,
+    marginTop: 4,
+  },
+  statsLeftStack: {
+    alignItems: 'center',
+    width: 60,
+    position: 'relative',
+  },
+  cardReportBtn: {
+    padding: 4,
+    marginBottom: 8,
+  },
+  cardContextMenu: {
+    position: 'absolute',
+    top: 30,
+    left: 0,
+    backgroundColor: COLORS.surfaceHover || '#22252A',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    width: 90,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 50,
+  },
+  cardContextItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  cardContextText: {
+    fontFamily: FONTS.semibold,
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
   ratingPill: {
     backgroundColor: 'rgba(255, 107, 53, 0.15)',
     borderRadius: RADIUS.pill,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    alignSelf: 'flex-start',
-    flexShrink: 0,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ratingPillText: {
     color: COLORS.accent,
     fontFamily: FONTS.bold,
-    fontSize: 15,
+    fontSize: 14,
   },
   compactLikeBtn: {
     flexDirection: 'row',
@@ -718,13 +795,7 @@ const styles = StyleSheet.create({
   likeCountText: {
     fontFamily: FONTS.semibold,
     color: COLORS.textSecondary,
-  },
-  cardReportBtn: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    padding: 4,
-    zIndex: 10,
+    fontSize: 12,
   },
   reviewComment: {
     fontFamily: FONTS.regular,
@@ -732,7 +803,15 @@ const styles = StyleSheet.create({
     color: '#D0D0D8',
     textAlign: 'right',
     lineHeight: 21,
-    marginTop: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  noComment: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'right',
+    marginTop: SPACING.md,
+    fontStyle: 'italic',
   },
   emptyState: {
     flex: 1,
@@ -780,10 +859,11 @@ const styles = StyleSheet.create({
   },
   ctaContainer: {
     paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.lg,
+    paddingTop: SPACING.lg,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',
     backgroundColor: COLORS.surface,
+    zIndex: 10,
   },
   writeReviewBtn: {
     backgroundColor: COLORS.accent,
