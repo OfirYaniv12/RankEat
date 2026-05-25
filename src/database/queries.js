@@ -245,16 +245,18 @@ export const signUpUser = async ({ email, password, firstName, lastName, distric
   if (!authData.user) throw new Error('Signup failed: No user returned');
 
   // 2. Create Profile in public.profiles
+  // We use .upsert instead of .insert because Supabase often has an auth.users trigger
+  // that automatically creates a blank profile row, which would cause a duplicate key error.
   const { error: profileError } = await supabase
     .from('profiles')
-    .insert({
+    .upsert({
       id: authData.user.id,
       first_name: firstName,
       last_name: lastName,
       district_id: districtId,
       city_id: cityId,
       trust_score: 1.0
-    });
+    }, { onConflict: 'id' });
 
   if (profileError) throw profileError;
   return authData.user;
