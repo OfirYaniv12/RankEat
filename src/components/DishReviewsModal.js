@@ -720,6 +720,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginRight: 16,
     marginLeft: SPACING.sm,
+    marginTop: 8, // Added to shift the right block lower
   },
   reviewerName: {
     fontFamily: FONTS.bold,
@@ -750,7 +751,8 @@ const styles = StyleSheet.create({
   statsLeftStack: {
     alignItems: 'center',
     width: 60,
-    marginTop: 20, // Push down slightly so it's independent of absolute 3-dots
+    marginTop: 18,
+    marginLeft: 28,
   },
   cardReportBtn: {
     position: 'absolute',
