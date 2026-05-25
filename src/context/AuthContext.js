@@ -22,20 +22,25 @@ export const AuthProvider = ({ children }) => {
       if (!profile || !profile.first_name) {
         const meta = authUser.user_metadata || {};
         const fullName = meta.full_name || meta.name || '';
-        const [firstName, ...rest] = fullName.trim().split(/\s+/);
-        const lastName = rest.join(' ');
+        const nameParts = fullName.trim().split(/\s+/);
+        const firstName = nameParts[0] || 'משתמש';
+        const lastName = nameParts.slice(1).join(' ') || '';
 
-        if (!profile) {
-          await upsertProfile(authUser.id, {
-            first_name: firstName || '',
-            last_name: lastName || '',
-            trust_score: 1.0,
-          });
-        } else {
-          await updateProfile(authUser.id, {
-            first_name: firstName || '',
-            last_name: lastName || '',
-          });
+        try {
+          if (!profile) {
+            await upsertProfile(authUser.id, {
+              first_name: firstName,
+              last_name: lastName,
+              trust_score: 1.0,
+            });
+          } else {
+            await updateProfile(authUser.id, {
+              first_name: firstName,
+              last_name: lastName,
+            });
+          }
+        } catch (dbErr) {
+          console.error('Failed to update profile row:', dbErr);
         }
 
         profile = await getProfile(authUser.id);
@@ -72,19 +77,24 @@ export const AuthProvider = ({ children }) => {
         // Listener fired — cancel the hang guard immediately
         clearTimeout(hangGuard);
 
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
+        try {
+          if (event === 'SIGNED_OUT') {
+            setUser(null);
+            return;
+          }
+
+          if (session?.user) {
+            // Add a timeout to refreshProfile to ensure it never hangs the loading screen
+            await Promise.race([
+              refreshProfile(session.user),
+              new Promise(resolve => setTimeout(resolve, 5000))
+            ]);
+          } else {
+            setUser(null);
+          }
+        } finally {
           setLoading(false);
-          return;
         }
-
-        if (session?.user) {
-          await refreshProfile(session.user);
-        } else {
-          setUser(null);
-        }
-
-        setLoading(false);
       }
     );
 
