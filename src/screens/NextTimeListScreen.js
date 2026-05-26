@@ -12,7 +12,7 @@ import {
   StatusBar,
   SafeAreaView,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons'; // used by DishCard internally
 import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { getSavedDishes, unsaveDish } from '../database/queries';
@@ -136,13 +136,13 @@ export default function NextTimeListScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Header */}
+      {/* Header — RTL: back arrow right-side, title beside it */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back" size={22} color={COLORS.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>הפעם הבאה שלי</Text>
         <View style={{ width: 40 }} />
+        <Text style={styles.headerTitle}>הפעם הבאה שלי</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Text style={{ fontSize: 20, color: COLORS.textPrimary }}>←</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (

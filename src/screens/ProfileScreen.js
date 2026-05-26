@@ -337,16 +337,22 @@ export default function ProfileScreen() {
               <Text style={styles.trustTxt}>{getUserTitle(profileData?.trust_score, reviews.length)}</Text>
             </View>
 
-            <TouchableOpacity style={styles.editProfileBtnOutline} onPress={() => setEditProfileVisible(true)}>
-              <Text style={styles.editProfileBtnTxt}>עריכת פרופיל</Text>
-            </TouchableOpacity>
+            {/* Profile Action Buttons — side-by-side RTL row */}
+            <View style={{ flexDirection: 'row-reverse', gap: 10, marginTop: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <TouchableOpacity
+                style={[styles.editProfileBtnOutline, { marginTop: 0 }]}
+                onPress={() => setEditProfileVisible(true)}
+              >
+                <Text style={styles.editProfileBtnTxt}>עריכת פרופיל</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.editProfileBtnOutline, { marginTop: 10, borderColor: COLORS.accent }]}
-              onPress={() => navigation.navigate('NextTimeList')}
-            >
-              <Text style={[styles.editProfileBtnTxt, { color: COLORS.accent }]}>לרשימת הפעם הבאה שלי 🔖</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.editProfileBtnOutline, { marginTop: 0, borderColor: COLORS.accent }]}
+                onPress={() => navigation.navigate('NextTimeList')}
+              >
+                <Text style={[styles.editProfileBtnTxt, { color: COLORS.accent }]}>לרשימת הפעם הבאה 🔖</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.statsRow}>
               <View style={styles.statBox}>

@@ -80,21 +80,34 @@ export default function RankingsScreen({ navigation, route }) {
       setDishes(data);
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
 
-      // Load which dishes the current user has saved
+      // Load saved statuses separately so rankings reload doesn’t wipe them
       if (user?.id && data?.length) {
-        try {
-          const saved = await getSavedDishes(user.id);
-          const savedIds = new Set(saved.map(d => d.id));
-          const map = {};
-          data.forEach(d => { map[d.id] = savedIds.has(d.id); });
-          setSavedMap(map);
-        } catch (_) { /* silent */ }
+        loadSavedStatuses(data.map(d => d.id));
       }
     } catch (e) {
       console.error('loadRankings error:', e);
       setError('שגיאה בטעינת הנתונים');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Query just the dish_ids the user has saved — direct and reliable
+  const loadSavedStatuses = async (dishIds) => {
+    if (!user?.id || !dishIds?.length) return;
+    try {
+      const { data, error } = await supabase
+        .from('saved_dishes')
+        .select('dish_id')
+        .eq('user_id', user.id)
+        .in('dish_id', dishIds);
+      if (error) throw error;
+      const savedIds = new Set((data || []).map(r => r.dish_id));
+      const map = {};
+      dishIds.forEach(id => { map[id] = savedIds.has(id); });
+      setSavedMap(map);
+    } catch (e) {
+      console.error('loadSavedStatuses error:', e);
     }
   };
 
@@ -149,9 +162,13 @@ export default function RankingsScreen({ navigation, route }) {
       showAlert({ title: 'התחברות דרושה', message: 'אתה חייב להיות מחובר כדי לשמור מנות!', type: 'warning', primaryButtonText: 'הבנתי' });
       return;
     }
-    const alreadySaved = savedMap[dish.id];
-    // Optimistic UI update
-    setSavedMap(prev => ({ ...prev, [dish.id]: !alreadySaved }));
+    // Capture current state BEFORE async operations
+    const alreadySaved = !!savedMap[dish.id];
+    const newState = !alreadySaved;
+
+    // Optimistic UI update immediately
+    setSavedMap(prev => ({ ...prev, [dish.id]: newState }));
+
     try {
       if (alreadySaved) {
         await unsaveDish(user.id, dish.id);
@@ -159,6 +176,14 @@ export default function RankingsScreen({ navigation, route }) {
         await saveDish(user.id, dish.id);
         setSavedPopupVisible(true);
       }
+      // Confirm state with DB to ensure consistency
+      const { data, error } = await supabase
+        .from('saved_dishes')
+        .select('dish_id')
+        .eq('user_id', user.id)
+        .eq('dish_id', dish.id)
+        .maybeSingle();
+      setSavedMap(prev => ({ ...prev, [dish.id]: !!data }));
     } catch (e) {
       console.error('toggleSave error:', e);
       // Revert optimistic update on error

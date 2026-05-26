@@ -97,32 +97,45 @@ export default function DishCard({
             )}
 
             <View style={{ flexDirection: 'row-reverse', alignItems: 'center', width: '100%' }}>
-              {/* Dish icon */}
-              <View style={[styles.photoPlaceholder, { width: 70, height: 70 }]}>
+              {/* Far Right: Dish icon */}
+              <View style={[styles.photoPlaceholder, { width: 64, height: 64, flexShrink: 0 }]}>
                 <MaterialIcons name="lunch-dining" size={24} color="#FF7F50" />
               </View>
 
-              {/* Text */}
-              <View style={{ flex: 1, marginHorizontal: 12, alignItems: 'flex-end' }}>
-                <Text style={[styles.cardTitle, { fontSize: 18, textAlign: 'right' }]} numberOfLines={2}>
+              {/* Middle: Text */}
+              <View style={{ flex: 1, marginHorizontal: 10, alignItems: 'flex-end' }}>
+                <Text style={[styles.cardTitle, { fontSize: 16, textAlign: 'right' }]} numberOfLines={2}>
                   {titleLine}
                 </Text>
-                <Text style={[styles.cardAddress, { fontSize: 14, textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
+                <Text style={[styles.cardAddress, { fontSize: 13, textAlign: 'right', marginTop: 3 }]} numberOfLines={1}>
                   {item.address || 'כתובת לא הוזנה'}
                 </Text>
-                <Text style={[styles.cardReviews, { fontSize: 12, textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
+                <Text style={[styles.cardReviews, { fontSize: 11, textAlign: 'right', marginTop: 3 }]} numberOfLines={1}>
                   דורג ע"י {item.review_count || 0} אנשים
                 </Text>
               </View>
 
-              {/* Rating + bookmark */}
-              <View style={{ alignItems: 'center', gap: 6 }}>
-                <View style={[styles.ratingBadge, { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20 }]}>
-                  <Text style={[styles.ratingBadgeText, { fontSize: 15 }]}>
+              {/* Far Left: Rating + Bookmark — compact column */}
+              <View style={{ alignItems: 'center', flexShrink: 0, minWidth: 52 }}>
+                <View style={[styles.ratingBadge, { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 16 }]}>
+                  <Text style={[styles.ratingBadgeText, { fontSize: 14 }]}>
                     ★ {(item.weighted_score || 0).toFixed(1)}
                   </Text>
                 </View>
-                {onToggleSave && <BookmarkBtn />}
+                {onToggleSave && (
+                  <TouchableOpacity
+                    onPress={onToggleSave}
+                    activeOpacity={0.7}
+                    style={{ padding: 4, marginTop: 6 }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialIcons
+                      name={isSaved ? 'bookmark' : 'bookmark-border'}
+                      size={22}
+                      color={isSaved ? COLORS.accent : '#A0A0A5'}
+                    />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
