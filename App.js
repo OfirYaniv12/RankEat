@@ -10,6 +10,34 @@ import { navigationRef } from './src/navigation/navigationRef';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
+// ─── Deep Linking / Web URL Routing ──────────────────────────────────────────
+// Maps each screen name to a URL path so that:
+//   • The browser URL stays in sync with the current screen
+//   • Refreshing restores the same screen (not always Home)
+//   • Direct URL access (e.g. /restaurant/42) opens the correct screen
+const linking = {
+  prefixes: [
+    // Production domain – update if your Vercel URL changes
+    'https://rank-eat.vercel.app',
+    'https://rankeat.vercel.app',
+    // Local Expo Web dev server
+    'http://localhost:19006',
+    'http://localhost:8081',
+  ],
+  config: {
+    screens: {
+      Home:            '',            // /
+      CategorySelect:  'search',      // /search
+      Rankings:        'rankings',    // /rankings
+      Profile:         'profile',     // /profile
+      BusinessProfile: 'restaurant/:businessId', // /restaurant/42
+      TermsOfService:  'terms',       // /terms
+      // Fallback: anything unrecognised goes Home
+      NotFound:        '*',
+    },
+  },
+};
+
 // GestureHandlerRootView is native-only; skip it on web
 let GestureHandlerRootView;
 if (Platform.OS !== 'web') {
@@ -98,7 +126,7 @@ export default function App() {
       <AuthProvider>
         <AlertProvider>
           <GestureHandlerRootView style={{ flex: 1 }}>
-            <NavigationContainer ref={navigationRef}>
+            <NavigationContainer ref={navigationRef} linking={linking}>
               <GlobalLayout>
                 <AppNavigator />
                 <Analytics />
