@@ -94,16 +94,43 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (event === 'SIGNED_IN' && session?.user) {
-          try {
-            setLoading(true);
-            await refreshProfile(session.user);
-          } catch (error) {
-            console.error('Auth State Change Error (Zombie Session):', error);
-            await supabase.auth.signOut();
-            setUser(null);
-          } finally {
-            setLoading(false);
-          }
+          // CRITICAL WEB FIX: Supabase fires SIGNED_IN on every tab-focus via
+          // its internal visibilitychange listener (a token refresh). We must
+          // NOT show the global blocking loader in that case — only show it
+          // when this is a genuine new login (user was null before this event).
+          // We read the current user state via a functional-state read to avoid
+          // stale closure issues.
+          setUser(prevUser => {
+            const isGenuineNewLogin = prevUser === null;
+            if (isGenuineNewLogin) {
+              // Kick off an async profile refresh + loading state.
+              // setLoading must be called outside the functional updater.
+              (async () => {
+                try {
+                  setLoading(true);
+                  await refreshProfile(session.user);
+                } catch (error) {
+                  console.error('Auth State Change Error (Zombie Session):', error);
+                  await supabase.auth.signOut();
+                  setUser(null);
+                } finally {
+                  setLoading(false);
+                }
+              })();
+              // Return prevUser unchanged while the async work runs —
+              // refreshProfile will call setUser with the merged profile.
+              return prevUser;
+            }
+
+            // User was already logged in — this is a silent background
+            // token refresh triggered by tab focus (web visibilitychange).
+            // Silently refresh the profile WITHOUT touching loading state
+            // so the screen never flickers.
+            refreshProfile(session.user).catch(err => {
+              console.warn('Silent token refresh profile error:', err);
+            });
+            return prevUser; // Keep the existing user state intact
+          });
         }
       }
     );
