@@ -317,3 +317,76 @@ export const getHomeStats = async () => {
 // NOTE: The canonical getRankedRestaurants is in SearchQueries.js.
 // That file contains the fuzzy-search, Levenshtein distance, and structured
 // location-filter logic used by both SearchScreen and RankingsScreen.
+
+// ─── SAVED DISHES (Wishlist / "Next Time") ────────────────────────────────────
+
+/** Returns true if the user has already saved this dish */
+export const isDishSaved = async (userId, dishId) => {
+  const { data, error } = await supabase
+    .from('saved_dishes')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('dish_id', dishId)
+    .maybeSingle();
+  if (error) throw new Error(`isDishSaved: ${error.message}`);
+  return !!data;
+};
+
+/** Inserts a saved_dishes row; no-ops if already present */
+export const saveDish = async (userId, dishId) => {
+  const { error } = await supabase
+    .from('saved_dishes')
+    .upsert({ user_id: userId, dish_id: dishId }, { onConflict: 'user_id,dish_id' });
+  if (error) throw new Error(`saveDish: ${error.message}`);
+};
+
+/** Deletes the saved_dishes row for this user + dish */
+export const unsaveDish = async (userId, dishId) => {
+  const { error } = await supabase
+    .from('saved_dishes')
+    .delete()
+    .eq('user_id', userId)
+    .eq('dish_id', dishId);
+  if (error) throw new Error(`unsaveDish: ${error.message}`);
+};
+
+/**
+ * Fetches all saved dishes for a user, newest first.
+ * Returns an array of dish objects shaped the same as getRankedDishes so
+ * the DishCard component can render them without any massaging.
+ */
+export const getSavedDishes = async (userId) => {
+  const { data, error } = await supabase
+    .from('saved_dishes')
+    .select(`
+      id,
+      created_at,
+      dishes (
+        id,
+        name,
+        review_count,
+        weighted_score,
+        businesses (
+          id,
+          name,
+          address,
+          cities ( name )
+        )
+      )
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(`getSavedDishes: ${error.message}`);
+
+  return (data || []).map(row => ({
+    ...row.dishes,
+    business_id:    row.dishes?.businesses?.id,
+    business_name:  row.dishes?.businesses?.name,
+    address:        row.dishes?.businesses?.address,
+    city_name:      row.dishes?.businesses?.cities?.name,
+    weighted_score: row.dishes?.weighted_score ?? 0,
+    review_count:   row.dishes?.review_count ?? 0,
+    savedRowId:     row.id,
+  }));
+};

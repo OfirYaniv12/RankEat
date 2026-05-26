@@ -26,13 +26,13 @@ const linking = {
   ],
   config: {
     screens: {
-      Home:            '',            // /
-      CategorySelect:  'search',      // /search
-      Rankings:        'rankings',    // /rankings
-      Profile:         'profile',     // /profile
-      BusinessProfile: 'restaurant/:businessId', // /restaurant/42
-      TermsOfService:  'terms',       // /terms
-      // Fallback: anything unrecognised goes Home
+      Home:            '',
+      CategorySelect:  'search',
+      Rankings:        'rankings',
+      Profile:         'profile',
+      BusinessProfile: 'restaurant/:businessId',
+      TermsOfService:  'terms',
+      NextTimeList:    'next-time',
       NotFound:        '*',
     },
   },

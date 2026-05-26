@@ -341,6 +341,13 @@ export default function ProfileScreen() {
               <Text style={styles.editProfileBtnTxt}>עריכת פרופיל</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={[styles.editProfileBtnOutline, { marginTop: 10, borderColor: COLORS.accent }]}
+              onPress={() => navigation.navigate('NextTimeList')}
+            >
+              <Text style={[styles.editProfileBtnTxt, { color: COLORS.accent }]}>לרשימת הפעם הבאה שלי 🔖</Text>
+            </TouchableOpacity>
+
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
                 <Text style={styles.statVal}>{reviews.length}</Text>
