@@ -332,12 +332,15 @@ export const isDishSaved = async (userId, dishId) => {
   return !!data;
 };
 
-/** Inserts a saved_dishes row; no-ops if already present */
+/** Inserts a saved_dishes row; throws on error */
 export const saveDish = async (userId, dishId) => {
   const { error } = await supabase
     .from('saved_dishes')
-    .upsert({ user_id: userId, dish_id: dishId }, { onConflict: 'user_id,dish_id' });
-  if (error) throw new Error(`saveDish: ${error.message}`);
+    .insert({ user_id: userId, dish_id: dishId });
+  if (error) {
+    console.error("Supabase Save Error:", error);
+    throw new Error(`saveDish: ${error.message}`);
+  }
 };
 
 /** Deletes the saved_dishes row for this user + dish */

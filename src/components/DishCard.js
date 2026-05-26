@@ -116,7 +116,7 @@ export default function DishCard({
               </View>
 
               {/* Far Left: Rating + Bookmark — compact column */}
-              <View style={{ alignItems: 'center', flexShrink: 0, minWidth: 52 }}>
+              <View style={{ alignItems: 'flex-start', flexShrink: 0 }}>
                 <View style={[styles.ratingBadge, { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 16 }]}>
                   <Text style={[styles.ratingBadgeText, { fontSize: 14 }]}>
                     ★ {(item.weighted_score || 0).toFixed(1)}
@@ -126,7 +126,7 @@ export default function DishCard({
                   <TouchableOpacity
                     onPress={onToggleSave}
                     activeOpacity={0.7}
-                    style={{ padding: 4, marginTop: 6 }}
+                    style={{ paddingVertical: 4, paddingRight: 8, marginTop: 6 }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <MaterialIcons
@@ -204,11 +204,11 @@ export default function DishCard({
             </View>
 
             {/* Left column: rating + bookmark + CTA buttons */}
-            <View style={[styles.leftSection, { height: 100 }]}>
+            <View style={[styles.leftSection, { height: 100, alignItems: 'flex-start' }]}>
               {/* Rating + bookmark on same row */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 8 }}>
                 {onToggleSave && <BookmarkBtn />}
-                <View style={[styles.ratingBadge, { paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' }]}>
+                <View style={[styles.ratingBadge, { paddingVertical: 10, paddingHorizontal: 16 }]}>
                   <Text style={[styles.ratingBadgeText, { fontSize: 18 }]}>
                     ★ {(item.weighted_score || 0).toFixed(1)}
                   </Text>
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: FONTS.bold, color: '#FFFFFF', textAlign: 'right', flexShrink: 1 },
   cardAddress: { fontFamily: FONTS.regular, color: '#A0A0A5', textAlign: 'right', marginTop: 6, flexShrink: 1 },
   cardReviews: { fontFamily: FONTS.regular, color: '#6E6E73', textAlign: 'right', marginTop: 6, flexShrink: 1 },
-  leftSection: { alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
+  leftSection: { alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 },
   ratingBadge: {
     backgroundColor: 'rgba(255,127,80,0.15)',
     borderRadius: 20,
