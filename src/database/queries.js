@@ -358,15 +358,27 @@ export const unsaveDish = async (userId, dishId) => {
  * Returns dish objects shaped identically to getRankedDishes output so
  * DishCard can render them without any massaging.
  *
- * Verified schema (2026-05-27):
- *   saved_dishes: id, user_id (uuid), dish_id (bigint), created_at
- *   dishes:       id, name, avg_rating, review_count, business_id, category_id
- *   businesses:   id, name, address, city_id, district_id
- *   cities:       id, name
- *
- * NOTE: dishes has NO weighted_score column — it is computed in JS.
+ * Score calculation: uses the global average of ALL dishes (not just saved ones)
+ * as the Bayesian prior C, so a dish with 0 reviews shows a fair prior score
+ * instead of a misleading 0.0.
  */
 export const getSavedDishes = async (userId) => {
+  // ── 1. Fetch global prior from ALL dishes (same as getRankedDishes does) ──
+  const { data: allDishes, error: globalErr } = await supabase
+    .from('dishes')
+    .select('avg_rating, review_count');
+
+  if (globalErr) {
+    console.error('Fetch Saved Dishes Error (global prior):', globalErr);
+  }
+
+  const BAYESIAN_M = 10;
+  const allRatings = (allDishes || []).map(d => d.avg_rating || 0);
+  const C = allRatings.length > 0
+    ? allRatings.reduce((s, r) => s + r, 0) / allRatings.length
+    : 4.0;
+
+  // ── 2. Fetch saved dishes with full dish + business join ──────────────────
   const { data, error } = await supabase
     .from('saved_dishes')
     .select(`
@@ -396,19 +408,13 @@ export const getSavedDishes = async (userId) => {
 
   if (!data || data.length === 0) return [];
 
-  // Bayesian constant — same as getRankedDishes so scores are comparable
-  const BAYESIAN_M = 10;
-  const allRatings = data.map(row => row.dishes?.avg_rating || 0);
-  const C = allRatings.length > 0
-    ? allRatings.reduce((s, r) => s + r, 0) / allRatings.length
-    : 4.0;
-
   return data
-    .filter(row => !!row.dishes) // skip any rows where the dish was deleted
+    .filter(row => !!row.dishes)
     .map(row => {
       const d = row.dishes;
       const R = d.avg_rating || 0;
       const v = d.review_count || 0;
+      // Bayesian weighted score using global prior — same formula as getRankedDishes
       const weighted_score = (R * v + C * BAYESIAN_M) / (v + BAYESIAN_M);
 
       return {
