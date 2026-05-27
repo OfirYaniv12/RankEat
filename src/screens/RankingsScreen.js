@@ -158,36 +158,53 @@ export default function RankingsScreen({ navigation, route }) {
 
   // ── Bookmark toggle ──────────────────────────────────────────────────────────
   const handleToggleSave = async (dish) => {
-    if (!user?.id) {
+    // Always fetch a fresh session so we have the real auth.uid()
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
       showAlert({ title: 'התחברות דרושה', message: 'אתה חייב להיות מחובר כדי לשמור מנות!', type: 'warning', primaryButtonText: 'הבנתי' });
       return;
     }
-    // Capture current state BEFORE async operations
-    const alreadySaved = !!savedMap[dish.id];
-    const newState = !alreadySaved;
+    const authUserId = session.user.id;   // guaranteed to match auth.uid() in RLS
+    const dishId     = dish.id;
 
-    // Optimistic UI update immediately
-    setSavedMap(prev => ({ ...prev, [dish.id]: newState }));
+    // Capture the pre-tap state so we can revert on failure
+    const wasAlreadySaved = !!savedMap[dishId];
+
+    // 1. Optimistic UI flip immediately
+    setSavedMap(prev => ({ ...prev, [dishId]: !wasAlreadySaved }));
 
     try {
-      if (alreadySaved) {
-        await unsaveDish(user.id, dish.id);
+      if (wasAlreadySaved) {
+        // ── DELETE ────────────────────────────────────────────────────────────
+        const { error } = await supabase
+          .from('saved_dishes')
+          .delete()
+          .eq('user_id', authUserId)
+          .eq('dish_id', dishId);
+
+        if (error) {
+          console.error('Supabase Delete Error:', error);
+          throw error;
+        }
       } else {
-        await saveDish(user.id, dish.id);
+        // ── INSERT ────────────────────────────────────────────────────────────
+        const { error } = await supabase
+          .from('saved_dishes')
+          .insert({ user_id: authUserId, dish_id: dishId });
+
+        if (error) {
+          console.error('Supabase Save Error:', error);
+          throw error;
+        }
+
+        // Only show popup after confirmed successful insert
         setSavedPopupVisible(true);
       }
-      // Confirm state with DB to ensure consistency
-      const { data, error } = await supabase
-        .from('saved_dishes')
-        .select('dish_id')
-        .eq('user_id', user.id)
-        .eq('dish_id', dish.id)
-        .maybeSingle();
-      setSavedMap(prev => ({ ...prev, [dish.id]: !!data }));
+      // NO post-save re-read — it was overwriting the state with stale results
     } catch (e) {
-      console.error('toggleSave error:', e);
-      // Revert optimistic update on error
-      setSavedMap(prev => ({ ...prev, [dish.id]: alreadySaved }));
+      console.error('toggleSave failed, reverting UI:', e);
+      // Revert optimistic update on any error
+      setSavedMap(prev => ({ ...prev, [dishId]: wasAlreadySaved }));
     }
   };
 

@@ -1,26 +1,28 @@
 /**
- * DishCard — reusable card for Rankings, Search results, and NextTimeList.
+ * DishCard — reusable ranked dish card for Rankings, Search, and NextTimeList.
  *
  * Props:
- *   item            – dish data object (business_name, city_name, name, …)
- *   index           – 0-based position in the list (used for rank badge)
- *   navigation      – react-navigation prop
+ *   item            – dish data object
+ *   index           – 0-based rank index (unused if showRank=false)
+ *   navigation      – react-navigation navigation prop
  *   isMobile        – boolean
- *   fadeAnim        – Animated.Value for entry fade (optional, defaults to 1)
- *   onOpenRatingForm – called when user taps "הוסף דירוג"
- *   onOpenReviews   – called when card is tapped (opens DishReviewsModal)
- *   // Bookmark / Wishlist
- *   isSaved         – boolean (filled vs outlined bookmark icon)
- *   onToggleSave    – async () => void – called on bookmark tap
- *   // Title override: 'default' = "BusinessName | CityName"
- *   //               'wishlist' = "DishName | BusinessName"
- *   titleMode       – 'default' | 'wishlist'
- *   // Rank badge: pass false to hide (e.g. wishlist screen)
- *   showRank        – boolean (default true)
+ *   fadeAnim        – optional Animated.Value for entry opacity
+ *   onOpenRatingForm – (item) => void
+ *   onOpenReviews    – (item) => void
+ *   isSaved          – boolean, controls filled/outlined bookmark icon
+ *   onToggleSave     – () => void, called when bookmark tapped
+ *   titleMode        – 'default' ("Business | City") | 'wishlist' ("Dish | Business")
+ *   showRank         – boolean (default true)
  */
 
 import React, { useRef } from 'react';
-import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Animated,
+  StyleSheet,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SPACING } from '../theme';
 
@@ -49,186 +51,185 @@ export default function DishCard({
 
   const titleLine =
     titleMode === 'wishlist'
-      ? `${item.name} | ${item.business_name}`
-      : `${item.business_name} | ${item.city_name}`;
+      ? `${item.name || ''} | ${item.business_name || ''}`
+      : `${item.business_name || ''} | ${item.city_name || ''}`;
 
-  // ── Bookmark button shared element ───────────────────────────────────────────
-  const BookmarkBtn = () => (
-    <TouchableOpacity
-      onPress={onToggleSave}
-      activeOpacity={0.7}
-      style={styles.bookmarkBtn}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-    >
-      <MaterialIcons
-        name={isSaved ? 'bookmark' : 'bookmark-border'}
-        size={22}
-        color={isSaved ? COLORS.accent : '#A0A0A5'}
-      />
-    </TouchableOpacity>
-  );
+  const scoreText = `★ ${(item.weighted_score || 0).toFixed(1)}`;
 
-  // ── MOBILE layout ─────────────────────────────────────────────────────────────
+  // ─── MOBILE layout ─────────────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <Animated.View
-        style={[{ opacity: anim, width: '100%', maxWidth: 800, alignSelf: 'center' }, styles.cardWrapper]}
-      >
-        <TouchableOpacity activeOpacity={0.85} onPress={() => onOpenReviews(item)}>
-          <View
-            style={[
-              styles.premiumCard,
-              {
-                position: 'relative',
-                width: '100%',
-                flexDirection: 'column',
-                padding: 16,
-                marginBottom: 16,
-                borderColor: rank <= 3 ? badgeBg + '44' : 'rgba(255,255,255,0.05)',
-                borderWidth: rank <= 3 ? 1.5 : 1,
-              },
-            ]}
-          >
-            {/* Rank badge — top right */}
-            {showRank && (
-              <View style={[styles.mobileRankOverlay, { backgroundColor: badgeBg }]}>
-                <Text style={[styles.mobileRankOverlayText, { color: badgeTextColor }]}>{rank}</Text>
-              </View>
-            )}
+      <Animated.View style={[styles.cardWrapper, { opacity: anim }]}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => onOpenReviews(item)}
+          style={[
+            styles.premiumCard,
+            {
+              borderColor: rank <= 3 && showRank ? badgeBg + '44' : 'rgba(255,255,255,0.05)',
+              borderWidth: rank <= 3 && showRank ? 1.5 : 1,
+            },
+          ]}
+        >
+          {/* Rank badge — absolute top-right */}
+          {showRank && (
+            <View style={[styles.mobileRankOverlay, { backgroundColor: badgeBg }]}>
+              <Text style={[styles.mobileRankOverlayText, { color: badgeTextColor }]}>{rank}</Text>
+            </View>
+          )}
 
-            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', width: '100%' }}>
-              {/* Far Right: Dish icon */}
-              <View style={[styles.photoPlaceholder, { width: 64, height: 64, flexShrink: 0 }]}>
-                <MaterialIcons name="lunch-dining" size={24} color="#FF7F50" />
-              </View>
-
-              {/* Middle: Text */}
-              <View style={{ flex: 1, marginHorizontal: 10, alignItems: 'flex-end' }}>
-                <Text style={[styles.cardTitle, { fontSize: 16, textAlign: 'right' }]} numberOfLines={2}>
-                  {titleLine}
-                </Text>
-                <Text style={[styles.cardAddress, { fontSize: 13, textAlign: 'right', marginTop: 3 }]} numberOfLines={1}>
-                  {item.address || 'כתובת לא הוזנה'}
-                </Text>
-                <Text style={[styles.cardReviews, { fontSize: 11, textAlign: 'right', marginTop: 3 }]} numberOfLines={1}>
-                  דורג ע"י {item.review_count || 0} אנשים
-                </Text>
-              </View>
-
-              {/* Far Left: Rating + Bookmark — compact column */}
-              <View style={{ alignItems: 'flex-start', flexShrink: 0 }}>
-                <View style={[styles.ratingBadge, { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 16 }]}>
-                  <Text style={[styles.ratingBadgeText, { fontSize: 14 }]}>
-                    ★ {(item.weighted_score || 0).toFixed(1)}
-                  </Text>
-                </View>
-                {onToggleSave && (
-                  <TouchableOpacity
-                    onPress={onToggleSave}
-                    activeOpacity={0.7}
-                    style={{ paddingVertical: 4, paddingRight: 8, marginTop: 6 }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <MaterialIcons
-                      name={isSaved ? 'bookmark' : 'bookmark-border'}
-                      size={22}
-                      color={isSaved ? COLORS.accent : '#A0A0A5'}
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
+          {/*
+            Row layout (RTL: row-reverse):
+              [Photo]  [Text flex:1]  [Rating+Bookmark]
+            In row-reverse rendering order:
+              - First child in JSX  → visually RIGHT (photo)
+              - Last child in JSX   → visually LEFT  (rating column)
+            justifyContent: 'space-between' pins photo to right edge
+            and rating column to left edge.
+          */}
+          <View style={styles.mobileRow}>
+            {/* RIGHT side: photo */}
+            <View style={[styles.photoPlaceholder, { width: 64, height: 64 }]}>
+              <MaterialIcons name="lunch-dining" size={26} color="#FF7F50" />
             </View>
 
-            {/* Action buttons */}
-            <View style={{ flexDirection: 'column', width: '100%', marginTop: 12, gap: 8 }}>
-              <TouchableOpacity
-                style={[styles.outlineBtnAccent, { width: '100%', paddingVertical: 10, borderRadius: 8 }]}
-                onPress={(e) => { e.stopPropagation?.(); onOpenRatingForm(item); }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.outlineBtnAccentText, { fontSize: 14, textAlign: 'center' }]}>הוסף דירוג</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.outlineBtn, { width: '100%', paddingVertical: 10, borderRadius: 8 }]}
-                onPress={(e) => { e.stopPropagation?.(); navigation.navigate('BusinessProfile', { businessId: item.business_id }); }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.outlineBtnText, { fontSize: 14, textAlign: 'center' }]}>לעמוד המסעדה</Text>
-              </TouchableOpacity>
+            {/* MIDDLE: text, takes all remaining space */}
+            <View style={styles.mobileTextCol}>
+              <Text style={styles.mobileTitle} numberOfLines={2}>{titleLine}</Text>
+              <Text style={styles.mobileAddress} numberOfLines={1}>
+                {item.address || 'כתובת לא הוזנה'}
+              </Text>
+              <Text style={styles.mobileReviews} numberOfLines={1}>
+                דורג ע"י {item.review_count || 0} אנשים
+              </Text>
             </View>
+
+            {/* LEFT side: rating pill + bookmark icon — flush to left edge */}
+            <View style={styles.mobileLeftCol}>
+              <View style={styles.ratingBadge}>
+                <Text style={styles.ratingBadgeText}>{scoreText}</Text>
+              </View>
+              {onToggleSave && (
+                <TouchableOpacity
+                  onPress={onToggleSave}
+                  activeOpacity={0.7}
+                  style={styles.bookmarkBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <MaterialIcons
+                    name={isSaved ? 'bookmark' : 'bookmark-border'}
+                    size={24}
+                    color={isSaved ? COLORS.accent : '#A0A0A5'}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Action buttons */}
+          <View style={styles.mobileActions}>
+            <TouchableOpacity
+              style={styles.btnAccent}
+              onPress={() => onOpenRatingForm(item)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.btnAccentText}>הוסף דירוג</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.btnOutline}
+              onPress={() => navigation.navigate('BusinessProfile', { businessId: item.business_id })}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.btnOutlineText}>לעמוד המסעדה</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Animated.View>
     );
   }
 
-  // ── DESKTOP layout ────────────────────────────────────────────────────────────
+  // ─── DESKTOP layout ──────────────────────────────────────────────────────────
   return (
-    <Animated.View style={[{ opacity: anim }, styles.cardWrapper]}>
-      <TouchableOpacity activeOpacity={0.85} onPress={() => onOpenReviews(item)}>
-        <View style={styles.outerRowContainer}>
+    <Animated.View style={[styles.cardWrapper, { opacity: anim }]}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => onOpenReviews(item)}
+      >
+        {/* Outer row: rank circle + card */}
+        <View style={styles.desktopOuter}>
           {showRank && (
-            <View style={[styles.rankBadgeCircle, { width: 44, height: 44, borderRadius: 22, backgroundColor: badgeBg }]}>
-              <Text style={[styles.rankBadgeText, { fontSize: 20, color: badgeTextColor }]}>{rank}</Text>
+            <View style={[styles.rankBadgeCircle, { backgroundColor: badgeBg }]}>
+              <Text style={[styles.rankBadgeText, { color: badgeTextColor }]}>{rank}</Text>
             </View>
           )}
 
+          {/*
+            Desktop card inner row (RTL: row-reverse):
+              [Photo] [Text flex:1] [Left column]
+            justifyContent: 'space-between' guarantees Left column hugs the left edge.
+          */}
           <View
             style={[
               styles.premiumCard,
+              styles.desktopCard,
               {
-                flex: 1,
-                flexDirection: 'row-reverse',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: 20,
                 borderColor: rank <= 3 && showRank ? badgeBg + '44' : 'rgba(255,255,255,0.05)',
                 borderWidth: rank <= 3 && showRank ? 1.5 : 1,
               },
             ]}
           >
-            <View style={[styles.photoPlaceholder, { width: 100, height: 100, flexShrink: 0 }]}>
+            {/* RIGHT: photo */}
+            <View style={[styles.photoPlaceholder, { width: 100, height: 100 }]}>
               <MaterialIcons name="lunch-dining" size={40} color="#FF7F50" />
             </View>
 
-            <View style={[styles.textSection, { marginHorizontal: 16, flex: 1, alignItems: 'flex-end' }]}>
-              <Text style={[styles.cardTitle, { fontSize: 22 }]} numberOfLines={2}>
-                {titleLine}
-              </Text>
-              <Text style={[styles.cardAddress, { fontSize: 16 }]} numberOfLines={1}>
+            {/* MIDDLE: text */}
+            <View style={styles.desktopTextCol}>
+              <Text style={styles.desktopTitle} numberOfLines={2}>{titleLine}</Text>
+              <Text style={styles.desktopAddress} numberOfLines={1}>
                 {item.address || 'כתובת לא הוזנה'}
               </Text>
-              <Text style={[styles.cardReviews, { fontSize: 14 }]} numberOfLines={1}>
+              <Text style={styles.desktopReviews} numberOfLines={1}>
                 דורג ע"י {item.review_count || 0} אנשים
               </Text>
             </View>
 
-            {/* Left column: rating + bookmark + CTA buttons */}
-            <View style={[styles.leftSection, { height: 100, alignItems: 'flex-start' }]}>
-              {/* Rating + bookmark on same row */}
-              <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 8 }}>
-                {onToggleSave && <BookmarkBtn />}
-                <View style={[styles.ratingBadge, { paddingVertical: 10, paddingHorizontal: 16 }]}>
-                  <Text style={[styles.ratingBadgeText, { fontSize: 18 }]}>
-                    ★ {(item.weighted_score || 0).toFixed(1)}
-                  </Text>
+            {/* LEFT: rating+bookmark on top, CTA buttons below — flush to left edge */}
+            <View style={styles.desktopLeftCol}>
+              <View style={styles.desktopScoreRow}>
+                {onToggleSave && (
+                  <TouchableOpacity
+                    onPress={onToggleSave}
+                    activeOpacity={0.7}
+                    style={styles.bookmarkBtn}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <MaterialIcons
+                      name={isSaved ? 'bookmark' : 'bookmark-border'}
+                      size={24}
+                      color={isSaved ? COLORS.accent : '#A0A0A5'}
+                    />
+                  </TouchableOpacity>
+                )}
+                <View style={styles.ratingBadge}>
+                  <Text style={[styles.ratingBadgeText, { fontSize: 18 }]}>{scoreText}</Text>
                 </View>
               </View>
 
-              <View style={[styles.actionButtonRow, { gap: 10 }]}>
+              <View style={styles.desktopBtnRow}>
                 <TouchableOpacity
-                  style={[styles.outlineBtn, { paddingVertical: 10, paddingHorizontal: 16 }]}
+                  style={styles.btnOutline}
                   onPress={() => navigation.navigate('BusinessProfile', { businessId: item.business_id })}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.outlineBtnText, { fontSize: 15 }]}>לעמוד המסעדה</Text>
+                  <Text style={styles.btnOutlineText}>לעמוד המסעדה</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.outlineBtnAccent, { paddingVertical: 10, paddingHorizontal: 16 }]}
+                  style={styles.btnAccent}
                   onPress={() => onOpenRatingForm(item)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.outlineBtnAccentText, { fontSize: 15 }]}>הוסף דירוג</Text>
+                  <Text style={styles.btnAccentText}>הוסף דירוג</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -240,14 +241,11 @@ export default function DishCard({
 }
 
 const styles = StyleSheet.create({
-  cardWrapper: { width: '100%', alignSelf: 'center' },
-  outerRowContainer: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    marginBottom: 4,
+  // ── Shared ────────────────────────────────────────────────────────────────
+  cardWrapper: {
     width: '100%',
-    maxWidth: 900,
     alignSelf: 'center',
+    marginBottom: 4,
   },
   premiumCard: {
     backgroundColor: '#1C1C1E',
@@ -256,47 +254,198 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.05)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
   },
-  mobileRankOverlay: {
-    position: 'absolute', top: 8, right: 8, zIndex: 10,
-    width: 28, height: 28, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  mobileRankOverlayText: { fontFamily: FONTS.bold, fontSize: 14, textAlign: 'center' },
-  rankBadgeCircle: { justifyContent: 'center', alignItems: 'center', marginLeft: 12 },
-  rankBadgeText: { fontFamily: FONTS.bold, fontWeight: 'bold', textAlign: 'center' },
   photoPlaceholder: {
     backgroundColor: '#2C2C2E',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center', justifyContent: 'center',
-    borderRadius: 8, flexShrink: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    flexShrink: 0,
   },
-  textSection: { flex: 1, flexShrink: 1, marginHorizontal: 12, alignItems: 'flex-end' },
-  cardTitle: { fontFamily: FONTS.bold, color: '#FFFFFF', textAlign: 'right', flexShrink: 1 },
-  cardAddress: { fontFamily: FONTS.regular, color: '#A0A0A5', textAlign: 'right', marginTop: 6, flexShrink: 1 },
-  cardReviews: { fontFamily: FONTS.regular, color: '#6E6E73', textAlign: 'right', marginTop: 6, flexShrink: 1 },
-  leftSection: { alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 },
   ratingBadge: {
     backgroundColor: 'rgba(255,127,80,0.15)',
     borderRadius: 20,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
   },
-  ratingBadgeText: { color: '#FF7F50', fontFamily: FONTS.bold },
-  actionButtonRow: { flexDirection: 'row', flexShrink: 0 },
-  outlineBtn: {
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 8, backgroundColor: 'transparent',
-    justifyContent: 'center', alignItems: 'center',
+  ratingBadgeText: {
+    color: '#FF7F50',
+    fontFamily: FONTS.bold,
+    fontSize: 14,
   },
-  outlineBtnText: { fontFamily: FONTS.semibold, color: '#A0A0A5', textAlign: 'center' },
-  outlineBtnAccent: {
-    borderWidth: 1, borderColor: '#FF7F50',
-    borderRadius: 8, backgroundColor: 'transparent',
-    justifyContent: 'center', alignItems: 'center',
+  bookmarkBtn: {
+    padding: 4,
   },
-  outlineBtnAccentText: { fontFamily: FONTS.bold, color: '#FF7F50', textAlign: 'center' },
-  bookmarkBtn: { padding: 4 },
+
+  // ── Mobile ────────────────────────────────────────────────────────────────
+  mobileRankOverlay: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mobileRankOverlayText: {
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+  },
+  mobileRow: {
+    flexDirection: 'row-reverse',   // RTL: photo at right, rating col at left
+    alignItems: 'center',
+    justifyContent: 'space-between', // pins rating col to absolute left edge
+    width: '100%',
+    padding: 14,
+    paddingBottom: 0,
+  },
+  mobileTextCol: {
+    flex: 1,
+    alignItems: 'flex-end',
+    paddingHorizontal: 10,
+  },
+  mobileTitle: {
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+    fontSize: 15,
+    textAlign: 'right',
+  },
+  mobileAddress: {
+    fontFamily: FONTS.regular,
+    color: '#A0A0A5',
+    fontSize: 12,
+    textAlign: 'right',
+    marginTop: 3,
+  },
+  mobileReviews: {
+    fontFamily: FONTS.regular,
+    color: '#6E6E73',
+    fontSize: 11,
+    textAlign: 'right',
+    marginTop: 3,
+  },
+  mobileLeftCol: {
+    alignItems: 'flex-start',   // children start at the left edge of this col
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  mobileActions: {
+    flexDirection: 'column',
+    width: '100%',
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 14,
+    gap: 8,
+  },
+
+  // ── Desktop ───────────────────────────────────────────────────────────────
+  desktopOuter: {
+    flexDirection: 'row-reverse',   // rank circle on right, card on left
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
+  },
+  rankBadgeCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+    flexShrink: 0,
+  },
+  rankBadgeText: {
+    fontFamily: FONTS.bold,
+    fontSize: 20,
+  },
+  desktopCard: {
+    flex: 1,
+    flexDirection: 'row-reverse',   // photo right, text middle, left col left
+    alignItems: 'center',
+    justifyContent: 'space-between', // left col pinned to left edge
+    padding: 20,
+  },
+  desktopTextCol: {
+    flex: 1,
+    alignItems: 'flex-end',
+    marginHorizontal: 16,
+  },
+  desktopTitle: {
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+    fontSize: 20,
+    textAlign: 'right',
+  },
+  desktopAddress: {
+    fontFamily: FONTS.regular,
+    color: '#A0A0A5',
+    fontSize: 15,
+    textAlign: 'right',
+    marginTop: 6,
+  },
+  desktopReviews: {
+    fontFamily: FONTS.regular,
+    color: '#6E6E73',
+    fontSize: 13,
+    textAlign: 'right',
+    marginTop: 6,
+  },
+  desktopLeftCol: {
+    alignItems: 'flex-start',    // content starts at visual left edge
+    justifyContent: 'space-between',
+    flexShrink: 0,
+    height: 100,
+  },
+  desktopScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  desktopBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+
+  // ── Buttons ───────────────────────────────────────────────────────────────
+  btnAccent: {
+    borderWidth: 1,
+    borderColor: '#FF7F50',
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnAccentText: {
+    fontFamily: FONTS.bold,
+    color: '#FF7F50',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  btnOutline: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnOutlineText: {
+    fontFamily: FONTS.bold,
+    color: '#A0A0A5',
+    fontSize: 14,
+    textAlign: 'center',
+  },
 });

@@ -57,14 +57,34 @@ export default function NextTimeListScreen({ navigation }) {
 
   useEffect(() => { loadSaved(); }, [loadSaved]);
 
-  // ── Unsave and remove from local list immediately ─────────────────────────
+  // ── Unsave: remove from DB with fresh auth session, then from local list ─────
   const handleUnsave = async (item) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      showAlert({ title: 'התחברות דרושה', message: 'אתה חייב להיות מחובר כדי לנהל את הרשימה', type: 'warning', primaryButtonText: 'הבנתי' });
+      return;
+    }
+    const authUserId = session.user.id;
+
+    // Optimistic: remove card immediately
+    setDishes(prev => prev.filter(d => d.id !== item.id));
+
     try {
-      await unsaveDish(user.id, item.id);
-      setDishes(prev => prev.filter(d => d.id !== item.id));
+      const { error } = await supabase
+        .from('saved_dishes')
+        .delete()
+        .eq('user_id', authUserId)
+        .eq('dish_id', item.id);
+
+      if (error) {
+        console.error('Supabase Delete Error (NextTimeList):', error);
+        // Revert: restore the dish back into the list
+        setDishes(prev => [item, ...prev]);
+        showAlert({ title: 'שגיאה', message: 'לא ניתן להסיר את המנה', type: 'error', primaryButtonText: 'הבנתי' });
+      }
     } catch (e) {
-      console.error('unsave error:', e);
-      showAlert({ title: 'שגיאה', message: 'לא ניתן להסיר את המנה', type: 'error', primaryButtonText: 'הבנתי' });
+      console.error('handleUnsave failed:', e);
+      setDishes(prev => [item, ...prev]);
     }
   };
 
