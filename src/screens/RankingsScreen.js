@@ -123,7 +123,7 @@ export default function RankingsScreen({ navigation, route }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        showAlert({ title: 'התחברות דרושה', message: 'אתה חייב להיות מחובר כדי לדרג! אנא הירשם או התחבר.', type: 'warning', primaryButtonText: 'הבנתי' });
+        showAlert({ title: 'התחברות נדרשת', message: 'כדי לדרג, לעשות לייק או לדווח יש להתחבר למערכת.', type: 'warning', primaryButtonText: 'הבנתי' });
         return;
       }
 
@@ -169,7 +169,7 @@ export default function RankingsScreen({ navigation, route }) {
     // Always fetch a fresh session so we have the real auth.uid()
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) {
-      showAlert({ title: 'התחברות דרושה', message: 'אתה חייב להיות מחובר כדי לשמור מנות!', type: 'warning', primaryButtonText: 'הבנתי' });
+      showAlert({ title: 'התחברות נדרשת', message: 'כדי לדרג, לעשות לייק או לדווח יש להתחבר למערכת.', type: 'warning', primaryButtonText: 'הבנתי' });
       return;
     }
     const authUserId = session.user.id;   // guaranteed to match auth.uid() in RLS
@@ -402,7 +402,7 @@ export default function RankingsScreen({ navigation, route }) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backIcon}>→</Text>
+          <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={[styles.headlineBanner, { width: isMobile ? '95%' : '80%' }]}>
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,

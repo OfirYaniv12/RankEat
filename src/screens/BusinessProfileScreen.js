@@ -150,7 +150,7 @@ export default function BusinessProfileScreen({ route, navigation }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        showAlert({ title: 'התחברות דרושה', message: 'אתה חייב להיות מחובר כדי לדרג! אנא הירשם או התחבר.', type: 'warning', primaryButtonText: 'הבנתי' });
+        showAlert({ title: 'התחברות נדרשת', message: 'כדי לדרג, לעשות לייק או לדווח יש להתחבר למערכת.', type: 'warning', primaryButtonText: 'הבנתי' });
         return;
       }
 
@@ -291,7 +291,7 @@ export default function BusinessProfileScreen({ route, navigation }) {
             activeOpacity={0.7}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           >
-            <Text style={styles.backIcon}>→</Text>
+            <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
         </View>
 
@@ -354,7 +354,7 @@ export default function BusinessProfileScreen({ route, navigation }) {
             style={styles.backBtn}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           >
-            <Text style={styles.backIcon}>→</Text>
+            <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.errorCenter}>
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   topHeader: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,

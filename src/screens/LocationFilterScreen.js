@@ -125,7 +125,7 @@ export default function LocationFilterScreen({ navigation, route }) {
           }}
           style={styles.backBtn}
         >
-          <Text style={styles.backIcon}>→</Text>
+          <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerCategory}>{category.name}</Text>
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,

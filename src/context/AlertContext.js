@@ -61,7 +61,7 @@ export const AlertProvider = ({ children }) => {
       case 'warning': return COLORS.warning || '#FF9500';
       case 'success': return COLORS.success || '#34C759';
       case 'info':
-      default: return COLORS.primary;
+      default: return COLORS.accent;
     }
   };
 
@@ -71,7 +71,11 @@ export const AlertProvider = ({ children }) => {
       {alertConfig && (
         <Modal transparent animationType="fade" visible={!!alertConfig} onRequestClose={() => alertConfig.onCancel ? alertConfig.onCancel() : alertConfig.onConfirm()}>
           <View style={styles.overlay}>
-            <View style={[styles.modalBox, isMobile && styles.modalBoxMobile]}>
+            <View style={[
+              styles.modalBox, 
+              isMobile && styles.modalBoxMobile,
+              { borderColor: getIconColor(alertConfig.type) + '4D', shadowColor: getIconColor(alertConfig.type) }
+            ]}>
               <View style={[styles.iconContainer, { backgroundColor: getIconColor(alertConfig.type) + '15' }]}>
                 <MaterialIcons name={getIconName(alertConfig.type)} size={32} color={getIconColor(alertConfig.type)} />
               </View>
@@ -102,15 +106,25 @@ export const AlertProvider = ({ children }) => {
 };
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  modalBox: { backgroundColor: '#1E1E24', width: 400, padding: SPACING.xl, borderRadius: RADIUS.lg, alignItems: 'center', elevation: 20, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
+  modalBox: { 
+    backgroundColor: '#1E1E24', 
+    width: 400, 
+    padding: 32, 
+    borderRadius: 20, 
+    alignItems: 'center', 
+    shadowOpacity: 0.2, 
+    shadowRadius: 16, 
+    shadowOffset: { width: 0, height: 4 }, 
+    borderWidth: 1, 
+  },
   modalBoxMobile: { width: '85%' },
-  iconContainer: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.lg },
-  title: { fontSize: FONTS.h3, fontWeight: '800', color: '#FFFFFF', marginBottom: SPACING.md, textAlign: 'center' },
-  message: { fontSize: FONTS.body, color: '#A0AEC0', textAlign: 'center', marginBottom: SPACING.xl, lineHeight: 22 },
-  buttonRow: { flexDirection: 'row', width: '100%', justifyContent: 'space-between', gap: SPACING.md },
-  primaryButton: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.md, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5, shadowOffset: { width: 0, height: 3 } },
-  primaryButtonText: { color: '#FFFFFF', fontSize: FONTS.body, fontWeight: 'bold' },
-  secondaryButton: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.md, alignItems: 'center', backgroundColor: '#2D3748' },
-  secondaryButtonText: { color: '#E2E8F0', fontSize: FONTS.body, fontWeight: 'bold' }
+  iconContainer: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  title: { fontSize: 20, fontFamily: FONTS.bold, color: '#FFFFFF', marginBottom: 8, textAlign: 'center' },
+  message: { fontSize: 14, fontFamily: FONTS.regular, color: '#A0A0A5', textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  buttonRow: { flexDirection: 'row-reverse', width: '100%', justifyContent: 'center', gap: 12 },
+  primaryButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 16, fontFamily: FONTS.bold },
+  secondaryButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: '#2D3748' },
+  secondaryButtonText: { color: '#E2E8F0', fontSize: 16, fontFamily: FONTS.bold }
 });

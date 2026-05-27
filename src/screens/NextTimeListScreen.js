@@ -67,7 +67,7 @@ export default function NextTimeListScreen({ navigation }) {
   const handleUnsave = async (item) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) {
-      showAlert({ title: 'התחברות דרושה', message: 'אתה חייב להיות מחובר כדי לנהל את הרשימה', type: 'warning', primaryButtonText: 'הבנתי' });
+      showAlert({ title: 'התחברות נדרשת', message: 'כדי לדרג, לעשות לייק או לדווח יש להתחבר למערכת.', type: 'warning', primaryButtonText: 'הבנתי' });
       return;
     }
     // Optimistic remove
@@ -94,7 +94,7 @@ export default function NextTimeListScreen({ navigation }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        showAlert({ title: 'התחברות דרושה', message: 'אתה חייב להיות מחובר כדי לדרג!', type: 'warning', primaryButtonText: 'הבנתי' });
+        showAlert({ title: 'התחברות נדרשת', message: 'כדי לדרג, לעשות לייק או לדווח יש להתחבר למערכת.', type: 'warning', primaryButtonText: 'הבנתי' });
         return;
       }
       const { data: existingReview } = await supabase
@@ -152,7 +152,7 @@ export default function NextTimeListScreen({ navigation }) {
       {/* ── Header: matches RankingsScreen layout ── */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backIcon}>→</Text>
+          <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
 
         <Animated.View style={[styles.headerCenter, { opacity: bannerAnim }]}>
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
 
   // ── Top navigation bar / Header ──────────────────────────────────────────
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,

@@ -137,8 +137,8 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
     if (!currentUserId) {
       showConfirm({
         title: 'התחברות נדרשת',
-        message: 'כדי לדרג, לעשות לייק או לדווח יש להתחבר למערכת',
-        type: 'info',
+        message: 'כדי לדרג, לעשות לייק או לדווח יש להתחבר למערכת.',
+        type: 'warning',
         primaryButtonText: 'הבנתי',
         secondaryButtonText: 'ביטול',
         onConfirm: () => {}

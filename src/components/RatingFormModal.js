@@ -72,7 +72,7 @@ export default function RatingFormModal({ visible, dish, onClose, onSaveSuccess,
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         const msg = 'אתה חייב להיות מחובר כדי לדרג! אנא הירשם או התחבר.';
-        showAlert({ title: 'התחברות דרושה', message: msg, type: 'warning', primaryButtonText: 'הבנתי' });
+        showAlert({ title: 'התחברות נדרשת', message: 'כדי לדרג, לעשות לייק או לדווח יש להתחבר למערכת.', type: 'warning', primaryButtonText: 'הבנתי' });
         setIsSubmitting(false);
         return;
       }

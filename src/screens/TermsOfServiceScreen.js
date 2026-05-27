@@ -27,7 +27,7 @@ export default function TermsOfServiceScreen() {
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text style={styles.backIcon}>→</Text>
+          <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>תנאי שימוש</Text>
         <View style={{ width: 40 }} />
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background || '#0D0F14',
   },
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,

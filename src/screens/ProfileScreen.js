@@ -322,7 +322,7 @@ export default function ProfileScreen() {
           <View>
             <View style={styles.customHeader}>
               <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.backBtn}>
-                <Text style={styles.backIcon}>→</Text>
+                <Text style={styles.backIcon}>←</Text>
               </TouchableOpacity>
             </View>
 
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a0a0a' },
   customHeader: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 15,
