@@ -7,11 +7,17 @@ import {
   Animated,
   StatusBar,
   useWindowDimensions,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import { getHomeStats } from '../database/queries';
+import { supabase } from '../database/supabaseClient';
+import { useAlert } from '../context/AlertContext';
 
 export default function HomeScreen({ navigation }) {
+  const { showAlert } = useAlert();
   const [stats, setStats] = useState(null); // null = loading, object = data
   const [statsError, setStatsError] = useState(false);
 
@@ -20,6 +26,11 @@ export default function HomeScreen({ navigation }) {
 
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+
+  // Feedback State
+  const [isFeedbackVisible, setIsFeedbackVisible] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -74,6 +85,32 @@ export default function HomeScreen({ navigation }) {
     inputRange: [0, 1],
     outputRange: [COLORS.accent, COLORS.accentLight],
   });
+
+  const handleFeedbackSubmit = async () => {
+    const txt = feedbackText.trim();
+    if (!txt) return;
+    
+    setIsSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id || null;
+      
+      const { error } = await supabase
+        .from('user_feedback')
+        .insert({ user_id: uid, message: txt });
+        
+      if (error) throw error;
+      
+      showAlert({ title: 'תודה רבה!', message: 'תודה על הפידבק! 🚀', type: 'success', primaryButtonText: 'סגור' });
+      setFeedbackText('');
+      setIsFeedbackVisible(false);
+    } catch (e) {
+      console.error('Feedback submit error:', e);
+      showAlert({ title: 'שגיאה', message: 'לא הצלחנו לשלוח את הפידבק, נסה שוב מאוחר יותר.', type: 'error', primaryButtonText: 'הבנתי' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -151,6 +188,55 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
       )}
+
+      {/* Feedback Trigger Button */}
+      <TouchableOpacity 
+        style={styles.feedbackBtnTrigger} 
+        onPress={() => setIsFeedbackVisible(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.feedbackBtnTriggerText}>באג? הצעה? דברו איתנו 💡</Text>
+      </TouchableOpacity>
+
+      {/* Feedback Modal */}
+      <Modal visible={isFeedbackVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBody}>
+            <Text style={styles.modalTitle}>נשמח לשמוע ממך!</Text>
+            <TextInput
+              style={styles.feedbackInput}
+              multiline
+              placeholder="מה כדאי לנו לשפר או לתקן?"
+              placeholderTextColor={COLORS.textSecondary}
+              value={feedbackText}
+              onChangeText={setFeedbackText}
+              textAlign="right"
+              textAlignVertical="top"
+            />
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity 
+                style={styles.modalCancelBtn} 
+                onPress={() => setIsFeedbackVisible(false)}
+                disabled={isSubmitting}
+              >
+                <Text style={styles.modalCancelBtnText}>ביטול</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalSubmitBtn, (!feedbackText.trim() || isSubmitting) && { opacity: 0.5 }]} 
+                onPress={handleFeedbackSubmit}
+                disabled={!feedbackText.trim() || isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.modalSubmitBtnText}>שלח</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -275,5 +361,84 @@ const styles = StyleSheet.create({
     borderRadius: 90,
     bottom: -30,
     left: -50,
+  },
+  feedbackBtnTrigger: {
+    marginBottom: SPACING.xl,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  feedbackBtnTriggerText: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBody: {
+    width: '90%',
+    maxWidth: 400,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xl,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modalTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 20,
+    color: COLORS.textPrimary,
+    textAlign: 'right',
+    marginBottom: SPACING.md,
+  },
+  feedbackInput: {
+    backgroundColor: '#161618',
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.regular,
+    fontSize: 15,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    minHeight: 120,
+    padding: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+  },
+  modalCancelBtnText: {
+    fontFamily: FONTS.bold,
+    color: COLORS.textSecondary,
+    fontSize: 15,
+  },
+  modalSubmitBtn: {
+    flex: 1,
+    backgroundColor: COLORS.accent,
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+  },
+  modalSubmitBtnText: {
+    fontFamily: FONTS.bold,
+    color: '#FFF',
+    fontSize: 15,
   },
 });
