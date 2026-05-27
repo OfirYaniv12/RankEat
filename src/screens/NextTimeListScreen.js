@@ -149,33 +149,29 @@ export default function NextTimeListScreen({ navigation }) {
       <View style={[styles.circle1, isMobile && styles.circle1Mobile]} />
       <View style={[styles.circle2, isMobile && styles.circle2Mobile]} />
 
-      {/* ── Top bar: back button (RTL = right side) ── */}
-      <View style={styles.topBar}>
-        {/* Left spacer balances the row */}
-        <View style={{ width: 40 }} />
-
-        {/* Screen label — small, muted */}
-        <Text style={styles.topBarLabel}>הפעם הבאה שלי</Text>
-
-        {/* Back button on the right (RTL convention) */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+      {/* ── Header: matches RankingsScreen layout ── */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-      </View>
 
-      {/* ── Premium headline banner — matches RankingsScreen style ── */}
-      <Animated.View style={[styles.bannerWrapper, { opacity: bannerAnim }]}>
-        <View style={[styles.headlineBanner, { width: isMobile ? '92%' : '70%' }]}>
-          <Text style={[styles.bannerText, { fontSize: isMobile ? 15 : 20 }]}>
-            🔖 הביסים שמחכים לי
+        <Animated.View style={[styles.headerCenter, { opacity: bannerAnim }]}>
+          <View style={[styles.headlineBanner, { width: isMobile ? '95%' : '80%' }]}>
+            <Text style={[styles.bannerText, { fontSize: isMobile ? 15 : 20 }]}>
+              🤤 מה ששמרת לפעם הבאה
+            </Text>
+          </View>
+          <Text style={styles.bannerSub}>
+            {dishes.length === 1
+              ? 'שמרת מנה אחת לפעם הבאה'
+              : dishes.length > 1
+                ? `שמרת ${dishes.length} מנות לפעם הבאה`
+                : 'שמור מנות מהדירוגים כדי שיופיעו כאן'}
           </Text>
-        </View>
-        <Text style={styles.bannerSub}>
-          {dishes.length > 0
-            ? `${dishes.length} מנות שמרת לפעם הבאה`
-            : 'שמור מנות מהדירוגים כדי שיופיעו כאן'}
-        </Text>
-      </Animated.View>
+        </Animated.View>
+
+        <View style={{ width: 40 }} />
+      </View>
 
       {/* ── Content ── */}
       {loading ? (
@@ -253,15 +249,21 @@ const styles = StyleSheet.create({
   },
   circle2Mobile: { width: 180, height: 180, borderRadius: 90, bottom: -30, left: -50 },
 
-  // ── Top navigation bar ───────────────────────────────────────────────────
-  topBar: {
-    flexDirection: 'row-reverse',   // back btn on right, label centred
+  // ── Top navigation bar / Header ──────────────────────────────────────────
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.xl + 12,
-    paddingBottom: SPACING.sm,
+    paddingBottom: SPACING.md,
+    width: '100%',
     zIndex: 10,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
   },
   backBtn: {
     width: 40, height: 40,
@@ -275,21 +277,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: COLORS.textPrimary,
   },
-  topBarLabel: {
-    fontFamily: FONTS.bold,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    letterSpacing: 0.5,
-  },
 
   // ── Headline banner — mirrors RankingsScreen headlineBanner ─────────────
-  bannerWrapper: {
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.lg,
-    zIndex: 10,
-  },
   headlineBanner: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.pill,
