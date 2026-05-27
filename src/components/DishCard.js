@@ -51,8 +51,8 @@ export default function DishCard({
 
   const titleLine =
     titleMode === 'wishlist'
-      ? `${item.name || ''} | ${item.business_name || ''}`
-      : `${item.business_name || ''} | ${item.city_name || ''}`;
+      ? `\u200F${item.name || ''} | ${item.business_name || ''}`
+      : `\u200F${item.business_name || ''} | ${item.city_name || ''}`;
 
   const scoreText = `★ ${(item.weighted_score || 0).toFixed(1)}`;
 
@@ -317,6 +317,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   mobileAddress: {
     fontFamily: FONTS.regular,
@@ -384,6 +385,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 20,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   desktopAddress: {
     fontFamily: FONTS.regular,
