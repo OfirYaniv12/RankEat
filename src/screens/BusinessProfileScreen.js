@@ -272,7 +272,7 @@ export default function BusinessProfileScreen({ route, navigation }) {
 
     // Format address and city display
     const displayAddress = businessData.address && businessData.address !== 'כתובת לא הוזנה'
-      ? `${businessData.address}, ${businessData.cities?.name || ''}`
+      ? businessData.address
       : businessData.cities?.name || 'עיר לא ידועה';
 
     // Recalculate Overall Restaurant Rating based on dynamic SMART scores
