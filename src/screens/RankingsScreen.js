@@ -94,20 +94,28 @@ export default function RankingsScreen({ navigation, route }) {
 
   // Query just the dish_ids the user has saved — direct and reliable
   const loadSavedStatuses = async (dishIds) => {
-    if (!user?.id || !dishIds?.length) return;
+    if (!dishIds?.length) return;
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const authUserId = session.user.id;
+
       const { data, error } = await supabase
         .from('saved_dishes')
         .select('dish_id')
-        .eq('user_id', user.id)
+        .eq('user_id', authUserId)
         .in('dish_id', dishIds);
-      if (error) throw error;
+
+      if (error) {
+        console.error('loadSavedStatuses error:', error);
+        return;
+      }
       const savedIds = new Set((data || []).map(r => r.dish_id));
       const map = {};
       dishIds.forEach(id => { map[id] = savedIds.has(id); });
       setSavedMap(map);
     } catch (e) {
-      console.error('loadSavedStatuses error:', e);
+      console.error('loadSavedStatuses exception:', e);
     }
   };
 

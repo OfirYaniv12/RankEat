@@ -42,18 +42,27 @@ export default function NextTimeListScreen({ navigation }) {
   const [reviewsDish, setReviewsDish] = useState(null);
 
   const loadSaved = useCallback(async () => {
-    if (!user?.id) return;
     try {
       setLoading(true);
-      const data = await getSavedDishes(user.id);
+      // Use fresh session to guarantee we have the correct auth.uid()
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setDishes([]);
+        return;
+      }
+      const authUserId = session.user.id;
+      console.log('loadSaved: fetching for user', authUserId);
+      const data = await getSavedDishes(authUserId);
+      console.log('loadSaved: got', data.length, 'dishes');
       setDishes(data);
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     } catch (e) {
       console.error('NextTimeListScreen load error:', e);
+      showAlert({ title: 'שגיאת טעינה', message: e?.message || 'לא ניתן לטעון את הרשימה', type: 'error', primaryButtonText: 'הבנתי' });
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, []);
 
   useEffect(() => { loadSaved(); }, [loadSaved]);
 

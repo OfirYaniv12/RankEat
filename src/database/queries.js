@@ -355,41 +355,73 @@ export const unsaveDish = async (userId, dishId) => {
 
 /**
  * Fetches all saved dishes for a user, newest first.
- * Returns an array of dish objects shaped the same as getRankedDishes so
- * the DishCard component can render them without any massaging.
+ * Returns dish objects shaped identically to getRankedDishes output so
+ * DishCard can render them without any massaging.
+ *
+ * Verified schema (2026-05-27):
+ *   saved_dishes: id, user_id (uuid), dish_id (bigint), created_at
+ *   dishes:       id, name, avg_rating, review_count, business_id, category_id
+ *   businesses:   id, name, address, city_id, district_id
+ *   cities:       id, name
+ *
+ * NOTE: dishes has NO weighted_score column — it is computed in JS.
  */
 export const getSavedDishes = async (userId) => {
   const { data, error } = await supabase
     .from('saved_dishes')
     .select(`
       id,
+      dish_id,
       created_at,
       dishes (
         id,
         name,
+        avg_rating,
         review_count,
-        weighted_score,
         businesses (
           id,
           name,
           address,
-          cities ( name )
+          cities ( id, name )
         )
       )
     `)
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error) throw new Error(`getSavedDishes: ${error.message}`);
+  if (error) {
+    console.error('Fetch Saved Dishes Error:', error);
+    throw new Error(`getSavedDishes: ${error.message}`);
+  }
 
-  return (data || []).map(row => ({
-    ...row.dishes,
-    business_id:    row.dishes?.businesses?.id,
-    business_name:  row.dishes?.businesses?.name,
-    address:        row.dishes?.businesses?.address,
-    city_name:      row.dishes?.businesses?.cities?.name,
-    weighted_score: row.dishes?.weighted_score ?? 0,
-    review_count:   row.dishes?.review_count ?? 0,
-    savedRowId:     row.id,
-  }));
+  if (!data || data.length === 0) return [];
+
+  // Bayesian constant — same as getRankedDishes so scores are comparable
+  const BAYESIAN_M = 10;
+  const allRatings = data.map(row => row.dishes?.avg_rating || 0);
+  const C = allRatings.length > 0
+    ? allRatings.reduce((s, r) => s + r, 0) / allRatings.length
+    : 4.0;
+
+  return data
+    .filter(row => !!row.dishes) // skip any rows where the dish was deleted
+    .map(row => {
+      const d = row.dishes;
+      const R = d.avg_rating || 0;
+      const v = d.review_count || 0;
+      const weighted_score = (R * v + C * BAYESIAN_M) / (v + BAYESIAN_M);
+
+      return {
+        id:            d.id,
+        name:          d.name,
+        avg_rating:    R,
+        review_count:  v,
+        weighted_score,
+        business_id:   d.businesses?.id,
+        business_name: d.businesses?.name || '—',
+        address:       d.businesses?.address || '',
+        city_name:     d.businesses?.cities?.name || '—',
+        savedRowId:    row.id,
+      };
+    });
 };
