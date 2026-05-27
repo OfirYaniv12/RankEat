@@ -39,7 +39,8 @@ export default function GlobalLayout({ children }) {
   const [districts, setDistricts] = useState([]);
   const [filteredCities, setFilteredCities] = useState([]);
   const [formData, setFormData] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -197,7 +198,7 @@ export default function GlobalLayout({ children }) {
   const handleSignUp = async () => {
     setAuthError(null);
     
-    if (!formData.fullName || !formData.email || !formData.password || !formData.districtId || !formData.cityId) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.districtId || !formData.cityId) {
       setAuthError('אנא מלא את כל השדות');
       return;
     }
@@ -214,14 +215,11 @@ export default function GlobalLayout({ children }) {
 
     setIsSubmittingAuth(true);
     try {
-      const [firstName, ...rest] = formData.fullName.trim().split(/\s+/);
-      const lastName = rest.join(' ');
-
       const newUser = await signUpUser({
         email: formData.email,
         password: formData.password,
-        firstName,
-        lastName,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
         districtId: formData.districtId,
         cityId: formData.cityId
       });
@@ -231,7 +229,8 @@ export default function GlobalLayout({ children }) {
       
       setSignUpModalVisible(false);
       setFormData({
-        fullName: '',
+        firstName: '',
+        lastName: '',
         email: '',
         password: '',
         confirmPassword: '',
@@ -299,13 +298,21 @@ export default function GlobalLayout({ children }) {
               <Text style={styles.signUpTitle}>הצטרפות ל-RankEat</Text>
             </View>
             <ScrollView contentContainerStyle={styles.signUpForm}>
-              <Text style={styles.inputLabel}>שם מלא</Text>
+              <Text style={styles.inputLabel}>שם פרטי</Text>
               <TextInput 
                 style={styles.authInput}
-                placeholder="ישראל ישראלי"
+                placeholder="ישראל"
                 placeholderTextColor={COLORS.textSecondary}
-                value={formData.fullName}
-                onChangeText={(val) => setFormData({...formData, fullName: val})}
+                value={formData.firstName}
+                onChangeText={(val) => setFormData({...formData, firstName: val})}
+              />
+              <Text style={styles.inputLabel}>שם משפחה</Text>
+              <TextInput 
+                style={styles.authInput}
+                placeholder="ישראלי"
+                placeholderTextColor={COLORS.textSecondary}
+                value={formData.lastName}
+                onChangeText={(val) => setFormData({...formData, lastName: val})}
               />
               <Text style={styles.inputLabel}>אימייל</Text>
               <TextInput 
