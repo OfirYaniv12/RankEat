@@ -51,8 +51,20 @@ export default function DishCard({
 
   const titleLine =
     titleMode === 'wishlist'
-      ? `\u200F${item.name || ''} | ${item.business_name || ''}`
-      : `\u200F${item.business_name || ''} | ${item.city_name || ''}`;
+      ? (
+          <>
+            <Text>{item.name || ''}</Text>
+            <Text> | </Text>
+            <Text>{item.business_name || ''}</Text>
+          </>
+        )
+      : (
+          <>
+            <Text>{item.business_name || ''}</Text>
+            <Text> | </Text>
+            <Text>{item.city_name || ''}</Text>
+          </>
+        );
 
   const scoreText = `★ ${(item.weighted_score || 0).toFixed(1)}`;
 

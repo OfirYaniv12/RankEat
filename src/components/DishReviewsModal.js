@@ -378,7 +378,8 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
                 </TouchableOpacity>
 
                 <Text style={[styles.dishName, { marginTop: 32, writingDirection: 'rtl' }]} numberOfLines={2}>
-                  {`\u200F${dish?.name || ''}${dish?.business_name ? ` - ${dish.business_name}` : ''}`}
+                  <Text>{dish?.name || ''}</Text>
+                  {dish?.business_name ? <Text> - {dish.business_name}</Text> : null}
                 </Text>
 
                 <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 12 }}>

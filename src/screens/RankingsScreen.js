@@ -284,7 +284,9 @@ export default function RankingsScreen({ navigation, route }) {
               {/* Middle Column: Text */}
               <View style={{ flex: 1, marginHorizontal: 12, alignItems: 'flex-end' }}>
                 <Text style={[styles.cardTitle, { fontSize: 18, color: '#FFFFFF', textAlign: 'right', writingDirection: 'rtl' }]} numberOfLines={2}>
-                  {`\u200F${item.name} | ${item.city_name}`}
+                  <Text>{item.name}</Text>
+                  <Text> | </Text>
+                  <Text>{item.city_name}</Text>
                 </Text>
                 <Text style={[styles.cardAddress, { fontSize: 14, color: '#A0A0A5', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
                   {item.address || 'כתובת לא הוזנה'}
@@ -341,7 +343,9 @@ export default function RankingsScreen({ navigation, route }) {
 
             <View style={[styles.textSection, { marginHorizontal: 16, flex: 1, alignItems: 'flex-end' }]}>
               <Text style={[styles.cardTitle, { fontSize: 22, writingDirection: 'rtl' }]} numberOfLines={2}>
-                {`\u200F${item.name} | ${item.city_name}`}
+                <Text>{item.name}</Text>
+                <Text> | </Text>
+                <Text>{item.city_name}</Text>
               </Text>
               <Text style={[styles.cardAddress, { fontSize: 16 }]} numberOfLines={1}>
                 {item.address || 'כתובת לא הוזנה'}
