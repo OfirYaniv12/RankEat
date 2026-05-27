@@ -152,7 +152,7 @@ export default function NextTimeListScreen({ navigation }) {
       {/* ── Header: matches RankingsScreen layout ── */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backIcon}>←</Text>
+          <Text style={styles.backIcon}>→</Text>
         </TouchableOpacity>
 
         <Animated.View style={[styles.headerCenter, { opacity: bannerAnim }]}>
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
 
   // ── Top navigation bar / Header ──────────────────────────────────────────
   header: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,

@@ -166,7 +166,7 @@ export default function RatingFormModal({ visible, dish, onClose, onSaveSuccess,
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.lg,

@@ -291,7 +291,7 @@ export default function BusinessProfileScreen({ route, navigation }) {
             activeOpacity={0.7}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Text style={styles.backIcon}>→</Text>
           </TouchableOpacity>
         </View>
 
@@ -354,7 +354,7 @@ export default function BusinessProfileScreen({ route, navigation }) {
             style={styles.backBtn}
             hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Text style={styles.backIcon}>→</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.errorCenter}>
@@ -432,10 +432,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   topHeader: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
+    paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.xl + 60,
     paddingBottom: SPACING.md,
     width: '100%',

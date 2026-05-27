@@ -366,7 +366,7 @@ export default function SearchScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backIcon}>←</Text>
+          <Text style={styles.backIcon}>→</Text>
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <View style={styles.headerBadge}>
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
