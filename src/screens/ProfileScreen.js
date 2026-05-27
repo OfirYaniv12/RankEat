@@ -229,11 +229,11 @@ export default function ProfileScreen() {
           <Text style={[styles.cardDate, { marginBottom: 4, marginTop: 0 }]}>
             {new Date(item.created_at).toLocaleDateString('he-IL')}
           </Text>
-          <Text style={[styles.cardBusinessName, { textAlign: 'right' }]} numberOfLines={2}>
-            {item.dishes?.businesses?.name || 'מסעדה לא ידועה'} - {item.dishes?.businesses?.cities?.name || ''}
+          <Text style={[styles.cardBusinessName, { textAlign: 'right', writingDirection: 'rtl' }]} numberOfLines={2}>
+            {`\u200F${item.dishes?.businesses?.name || 'מסעדה לא ידועה'} - ${item.dishes?.businesses?.cities?.name || ''}`}
           </Text>
-          <Text style={[styles.cardDishName, { textAlign: 'right', marginTop: 2 }]} numberOfLines={2}>
-            מנה: {item.dishes?.name || 'לא ידועה'}
+          <Text style={[styles.cardDishName, { textAlign: 'right', marginTop: 2, writingDirection: 'rtl' }]} numberOfLines={2}>
+            {`\u200Fמנה: ${item.dishes?.name || 'לא ידועה'}`}
           </Text>
         </View>
 
