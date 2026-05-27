@@ -203,6 +203,9 @@ export default function RankingsScreen({ navigation, route }) {
       // NO post-save re-read — it was overwriting the state with stale results
     } catch (e) {
       console.error('toggleSave failed, reverting UI:', e);
+      // Show the real error on-screen so it's visible during debugging
+      const msg = e?.message || JSON.stringify(e) || 'Unknown error';
+      showAlert({ title: 'שגיאת שמירה', message: msg, type: 'error', primaryButtonText: 'הבנתי' });
       // Revert optimistic update on any error
       setSavedMap(prev => ({ ...prev, [dishId]: wasAlreadySaved }));
     }
