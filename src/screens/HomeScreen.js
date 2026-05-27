@@ -95,9 +95,29 @@ export default function HomeScreen({ navigation }) {
       const { data: { session } } = await supabase.auth.getSession();
       const uid = session?.user?.id || null;
       
+      let userNameToSave = 'משתמש לא מחובר';
+
+      if (uid) {
+        // Fetch the profile name
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', uid)
+          .single();
+          
+        if (profile) {
+          const first = profile.first_name || '';
+          const last = profile.last_name || '';
+          const fullName = `${first} ${last}`.trim();
+          if (fullName) {
+            userNameToSave = fullName;
+          }
+        }
+      }
+      
       const { error } = await supabase
         .from('user_feedback')
-        .insert({ user_id: uid, message: txt });
+        .insert({ user_id: uid, user_name: userNameToSave, message: txt });
         
       if (error) throw error;
       
