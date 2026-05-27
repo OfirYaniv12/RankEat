@@ -135,13 +135,11 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
 
   const requireAuth = (actionCallback) => {
     if (!currentUserId) {
-      showConfirm({
+      showAlert({
         title: 'התחברות נדרשת',
         message: 'כדי לדרג, לעשות לייק או לדווח יש להתחבר למערכת.',
         type: 'warning',
-        primaryButtonText: 'הבנתי',
-        secondaryButtonText: 'ביטול',
-        onConfirm: () => {}
+        primaryButtonText: 'הבנתי'
       });
       return false;
     }
