@@ -105,9 +105,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.surface || '#161922',
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.lg || 16,
     borderWidth: 1,
     borderColor: COLORS.border || '#252A38',
+    alignSelf: 'flex-start',
   },
   backIcon: {
     fontSize: 20,

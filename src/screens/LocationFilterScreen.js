@@ -194,6 +194,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    alignSelf: 'flex-start',
   },
   backIcon: {
     fontSize: 20,

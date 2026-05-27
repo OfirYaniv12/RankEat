@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
+    paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.xl + 60,
     paddingBottom: SPACING.md,
   },
@@ -522,6 +522,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    alignSelf: 'flex-start',
   },
   backIcon: {
     fontSize: 20,
