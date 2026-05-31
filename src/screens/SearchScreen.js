@@ -333,24 +333,25 @@ export default function SearchScreen({ navigation }) {
         showAlert({ title: 'שגיאה', message: 'יש לבחור קטגוריה', type: 'error', primaryButtonText: 'הבנתי' });
         return;
       }
-      if (searchMode !== 'ארצי' && !selectedLocation) {
-        showAlert({ title: 'שגיאה', message: 'יש לבחור מיקום או לשנות חיפוש לארצי', type: 'warning', primaryButtonText: 'הבנתי' });
+      if (searchMode !== 'ארצי' && searchMode !== 'nearMe' && searchMode !== 'custom' && !selectedLocation) {
+        showAlert({ title: 'שגיאה', message: 'יש לבחור מיקום או לשנות חיפוש', type: 'warning', primaryButtonText: 'הבנתי' });
         return;
       }
 
-      navigation.navigate('Rankings', {
+      const dishNavParams = {
         searchType: 'dish',
         category: selectedCategory,
-        district: dishLocMode === 'manual' && searchMode === 'אזורי' ? selectedLocation : null,
-        city:     dishLocMode === 'manual' && searchMode === 'עירוני' ? selectedLocation : null,
+        district: searchMode === 'אזורי' ? selectedLocation : null,
+        city:     searchMode === 'עירוני' ? selectedLocation : null,
+        searchMode: searchMode === 'nearMe' || searchMode === 'custom' ? 'ארצי' : searchMode,
       };
 
-      if (dishLocMode === 'nearMe' && userCoords) {
+      if (searchMode === 'nearMe' && userCoords) {
         dishNavParams.userLat    = userCoords.latitude;
         dishNavParams.userLon    = userCoords.longitude;
         dishNavParams.radiusKm   = 5;
         dishNavParams.locMode    = 'nearMe';
-      } else if (dishLocMode === 'custom' && userCoords) {
+      } else if (searchMode === 'custom' && userCoords) {
         const r = parseFloat(dishCustomRadius);
         if (!isNaN(r) && r > 0) {
           dishNavParams.userLat  = userCoords.latitude;
@@ -367,8 +368,8 @@ export default function SearchScreen({ navigation }) {
       try {
         const sortedRestaurants = await getRankedRestaurants({
           nameQuery: restaurantNameQuery,
-          searchMode: restLocMode === 'manual' ? restaurantSearchMode : 'ארצי',
-          selectedLocation: restLocMode === 'manual' ? selectedRestaurantLocation : null,
+          searchMode: (restaurantSearchMode === 'nearMe' || restaurantSearchMode === 'custom') ? 'ארצי' : restaurantSearchMode,
+          selectedLocation: (restaurantSearchMode === 'עירוני' || restaurantSearchMode === 'אזורי') ? selectedRestaurantLocation : null,
           selectedCategoryIds,
           userCityId: user?.city_id,
           userDistrictId: user?.district_id,
@@ -378,17 +379,17 @@ export default function SearchScreen({ navigation }) {
           searchType: 'restaurant',
           restaurants: sortedRestaurants,
           nameQuery: restaurantNameQuery,
-          searchMode: restaurantSearchMode,
-          selectedLocation: selectedRestaurantLocation,
+          searchMode: (restaurantSearchMode === 'nearMe' || restaurantSearchMode === 'custom') ? 'ארצי' : restaurantSearchMode,
+          selectedLocation: (restaurantSearchMode === 'עירוני' || restaurantSearchMode === 'אזורי') ? selectedRestaurantLocation : null,
           selectedCategoryIds,
         };
 
-        if (restLocMode === 'nearMe' && userCoords) {
+        if (restaurantSearchMode === 'nearMe' && userCoords) {
           restaurantNavParams.userLat  = userCoords.latitude;
           restaurantNavParams.userLon  = userCoords.longitude;
           restaurantNavParams.radiusKm = 5;
           restaurantNavParams.locMode  = 'nearMe';
-        } else if (restLocMode === 'custom' && userCoords) {
+        } else if (restaurantSearchMode === 'custom' && userCoords) {
           const r = parseFloat(restCustomRadius);
           if (!isNaN(r) && r > 0) {
             restaurantNavParams.userLat  = userCoords.latitude;
@@ -418,9 +419,7 @@ export default function SearchScreen({ navigation }) {
     isModeDropdownOpen ||
     isLocationDropdownOpen ||
     isRestaurantModeDropdownOpen ||
-    isRestaurantLocationDropdownOpen ||
-    isDishLocModeOpen ||
-    isRestLocModeOpen;
+    isRestaurantLocationDropdownOpen;
 
   const translateX = slideAnim.interpolate({
     inputRange: [0, 1],
