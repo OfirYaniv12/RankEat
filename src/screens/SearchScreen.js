@@ -545,9 +545,6 @@ export default function SearchScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* Location Mode Dropdown */}
-              <View style={[styles.inputRow, isMobile && { width: '100%' }, { marginTop: SPACING.lg, zIndex: isDishLocModeOpen ? 10 : 2 }]}>
-                <View style={styles.inputGroup}>
               {/* Row 2: Search Mode & Location */}
               <View style={[
                 styles.inputRow, 
