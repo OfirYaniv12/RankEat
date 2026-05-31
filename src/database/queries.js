@@ -50,7 +50,7 @@ export const getCitiesByDistrict = async (districtId) => {
 // ─── RANKED DISHES (Bayesian Average) ─────────────────────────────────────────
 // W = (R * v + C * m) / (v + m)
 // v = review_count, R = avg_rating, m = BAYESIAN_M, C = global average rating
-export const getRankedDishes = async ({ categoryId, districtId, cityId }) => {
+export const getRankedDishes = async ({ categoryId, districtId, cityId, nearbyBusinessIds, distanceMap }) => {
   // Build the businesses sub-query filter
   let businessQuery = supabase
     .from('businesses')
@@ -60,6 +60,10 @@ export const getRankedDishes = async ({ categoryId, districtId, cityId }) => {
     businessQuery = businessQuery.eq('city_id', cityId);
   } else if (districtId) {
     businessQuery = businessQuery.eq('district_id', districtId);
+  }
+
+  if (nearbyBusinessIds && nearbyBusinessIds.length > 0) {
+    businessQuery = businessQuery.in('id', nearbyBusinessIds);
   }
 
   const { data: businesses, error: bizError } = await businessQuery;
@@ -125,9 +129,12 @@ export const getRankedDishes = async ({ categoryId, districtId, cityId }) => {
         city_name: d.businesses?.cities?.name || '—',
         latitude: d.businesses?.lat,
         longitude: d.businesses?.lng,
+        distance_km: distanceMap ? (distanceMap[d.businesses?.id] ?? null) : null,
       };
-    })
-    .sort((a, b) => b.weighted_score - a.weighted_score);
+    });
+
+  // Sort strictly by score if distance is ignored or not present
+  dishes.sort((a, b) => b.weighted_score - a.weighted_score);
 
   return { dishes, globalAvg: C };
 };
