@@ -84,6 +84,8 @@ export const getRankedDishes = async ({ categoryId, districtId, cityId }) => {
         id,
         name,
         address,
+        lat,
+        lng,
         cities (
           id,
           name
@@ -121,6 +123,8 @@ export const getRankedDishes = async ({ categoryId, districtId, cityId }) => {
         business_id: d.businesses?.id,
         address: d.businesses?.address || '',
         city_name: d.businesses?.cities?.name || '—',
+        latitude: d.businesses?.lat,
+        longitude: d.businesses?.lng,
       };
     })
     .sort((a, b) => b.weighted_score - a.weighted_score);
