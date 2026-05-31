@@ -164,7 +164,7 @@ export default function SearchScreen({ navigation }) {
   const handleRestaurantLocationSearch = (text) => {
     setRestaurantLocationQuery(text);
     setSelectedRestaurantLocation(null);
-    if (restaurantSearchMode === 'ארצי') return;
+    if (restaurantSearchMode === 'ארצי' || restaurantSearchMode === 'nearMe') return;
 
     if (text.length > 0) {
       const sourceData = restaurantSearchMode === 'עירוני' ? cities : districts;
@@ -182,7 +182,7 @@ export default function SearchScreen({ navigation }) {
   };
 
   const handleRestaurantLocationFocus = () => {
-    if (restaurantSearchMode === 'ארצי') return;
+    if (restaurantSearchMode === 'ארצי' || restaurantSearchMode === 'nearMe') return;
     closeAllDropdowns();
     if (restaurantLocationQuery.length > 0) {
       handleRestaurantLocationSearch(restaurantLocationQuery);
@@ -259,7 +259,7 @@ export default function SearchScreen({ navigation }) {
   const handleLocationSearch = (text) => {
     setLocationQuery(text);
     setSelectedLocation(null);
-    if (searchMode === 'ארצי') return;
+    if (searchMode === 'ארצי' || searchMode === 'nearMe') return;
 
     if (text.length > 0) {
       const sourceData = searchMode === 'עירוני' ? cities : districts;
@@ -277,7 +277,7 @@ export default function SearchScreen({ navigation }) {
   };
 
   const handleLocationFocus = () => {
-    if (searchMode === 'ארצי') return;
+    if (searchMode === 'ארצי' || searchMode === 'nearMe') return;
     closeAllDropdowns();
     if (locationQuery.length > 0) {
       handleLocationSearch(locationQuery);
