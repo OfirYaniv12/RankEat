@@ -286,8 +286,10 @@ export const getRankedRestaurants = async ({ nameQuery, searchMode, selectedLoca
       // Sort strictly by score if distance is ignored or not present
       return b.smart_score - a.smart_score;
     });
-  } else {
-    // If we have a distanceMap (location search), sort strictly by score descending
+  }
+
+  // If we have a distanceMap (location search), override any previous sorts and sort strictly by score descending
+  if (distanceMap) {
     formattedBusinesses.sort((a, b) => b.smart_score - a.smart_score);
   }
 
