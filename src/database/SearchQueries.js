@@ -304,6 +304,7 @@ export const getRankedRestaurants = async ({ nameQuery, searchMode, selectedLoca
  * The RPC must return rows with: { business_id, distance_km }
  */
 export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }) => {
+  // Step 1: Call RPC
   const { data: nearby, error } = await supabase.rpc('get_nearby_businesses', {
     user_lat: Number(userLat),
     user_lng: Number(userLon),
@@ -313,10 +314,8 @@ export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }
   if (error) throw new Error(`getNearbyDishes/rpc: ${error.message}`);
   if (!nearby || nearby.length === 0) return { dishes: [], globalAvg: 0 };
 
-  // Build a map of business_id -> distance_km for later enrichment
   const distanceMap = {};
   nearby.forEach(row => {
-    // RPC may return either 'business_id' or 'id' — handle both
     const bizId = row.business_id ?? row.id;
     if (bizId) distanceMap[bizId] = row.distance_km ?? null;
   });
@@ -324,14 +323,64 @@ export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }
   const businessIds = nearby.map(r => r.business_id ?? r.id).filter(Boolean);
   if (businessIds.length === 0) return { dishes: [], globalAvg: 0 };
 
-  // Delegate entirely to getRankedDishes to ensure exact matching logic
-  return await getRankedDishes({
-    categoryId,
-    districtId: null,
-    cityId: null,
-    nearbyBusinessIds: businessIds,
-    distanceMap,
+  // Step 2: Run standard .select() query for dishes
+  const { data: rawDishes, error: dishError } = await supabase
+    .from('dishes')
+    .select(`
+      id,
+      name,
+      avg_rating,
+      review_count,
+      businesses (
+        id,
+        name,
+        address,
+        lat,
+        lng,
+        cities ( id, name )
+      )
+    `)
+    .eq('category_id', categoryId)
+    .in('business_id', businessIds);
+
+  if (dishError) throw new Error(`getNearbyDishes/dishes: ${dishError.message}`);
+  if (!rawDishes || rawDishes.length === 0) return { dishes: [], globalAvg: 0 };
+
+  console.log("Detailed Dish Data (Before mapping):", JSON.stringify(rawDishes.slice(0, 2), null, 2));
+
+  // Compute global average rating (C) across this local set (or we could use a fixed 4.0)
+  const BAYESIAN_M = 10;
+  const totalRatingSum = rawDishes.reduce((s, d) => s + (d.avg_rating || 0), 0);
+  const C = rawDishes.length > 0 ? totalRatingSum / rawDishes.length : 4.0;
+
+  // Step 3: Merge and explicitly map properties
+  const dishes = rawDishes.map(d => {
+    const R = d.avg_rating || 0;
+    const v = d.review_count || 0;
+    const weighted_score = (R * v + C * BAYESIAN_M) / (v + BAYESIAN_M);
+    
+    const biz = d.businesses || {};
+    
+    return {
+      id: d.id,
+      name: d.name,
+      avg_rating: R,
+      review_count: v,
+      weighted_score: weighted_score,
+      business_name: biz.name || '—',
+      business_id: biz.id,
+      address: biz.address || '',
+      city_name: biz.cities?.name || '—',
+      latitude: biz.lat,
+      longitude: biz.lng,
+      distance_km: distanceMap[biz.id] ?? null,
+    };
   });
+
+  // Step 4: Explicitly sort by smart rating descending
+  dishes.sort((a, b) => b.weighted_score - a.weighted_score);
+
+  return { dishes, globalAvg: C };
 };
 
 // ─── NEARBY RESTAURANTS (Location-Based RPC) ──────────────────────────────────
@@ -340,6 +389,7 @@ export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }
  * objects enriched with distance_km.
  */
 export const getNearbyRestaurants = async ({ userLat, userLon, radiusKm, nameQuery, selectedCategoryIds }) => {
+  // Step 1: Call RPC
   const { data: nearby, error } = await supabase.rpc('get_nearby_businesses', {
     user_lat: Number(userLat),
     user_lng: Number(userLon),
@@ -358,12 +408,99 @@ export const getNearbyRestaurants = async ({ userLat, userLon, radiusKm, nameQue
   const businessIds = nearby.map(r => r.business_id ?? r.id).filter(Boolean);
   if (businessIds.length === 0) return [];
 
-  // Delegate entirely to getRankedRestaurants to ensure exact matching logic
-  return await getRankedRestaurants({
-    nameQuery,
-    searchMode: 'ארצי', // No city/district filtering needed
-    selectedCategoryIds,
-    nearbyBusinessIds: businessIds,
-    distanceMap,
+  // Step 2: Run standard .select() query using .in('id', ids)
+  const { data: businesses, error: bizError } = await supabase
+    .from('businesses')
+    .select(`
+      id,
+      name,
+      address,
+      lat,
+      lng,
+      city_id,
+      district_id,
+      cities ( id, name ),
+      districts ( id, name ),
+      dishes (
+        id,
+        name,
+        avg_rating,
+        review_count,
+        category_id
+      )
+    `)
+    .in('id', businessIds);
+
+  if (bizError) throw new Error(`getNearbyRestaurants/businesses: ${bizError.message}`);
+  if (!businesses || businesses.length === 0) return [];
+
+  console.log("Detailed Business Data (First 2):", JSON.stringify(businesses.slice(0, 2), null, 2));
+
+  // Compute smart scores (exactly as in standard manual search)
+  const BAYESIAN_M = 10;
+  const allDishes = [];
+  businesses.forEach(b => { if (b.dishes) allDishes.push(...b.dishes); });
+
+  const categoryGroups = {};
+  allDishes.forEach(d => {
+    const catId = d.category_id;
+    if (!categoryGroups[catId]) categoryGroups[catId] = { sum: 0, count: 0 };
+    categoryGroups[catId].sum += (d.avg_rating || 0);
+    categoryGroups[catId].count += 1;
   });
+  const categoryAverages = {};
+  Object.keys(categoryGroups).forEach(catId => {
+    const g = categoryGroups[catId];
+    categoryAverages[catId] = g.count > 0 ? g.sum / g.count : 4.0;
+  });
+
+  // Step 3: Explicit Property Mapping & Merge
+  let results = businesses.map(b => {
+    let dishScoresSum = 0, validDishesCount = 0, totalReviews = 0;
+    
+    if (b.dishes && b.dishes.length > 0) {
+      b.dishes.forEach(d => {
+        const R = d.avg_rating || 0;
+        const v = d.review_count || 0;
+        const C = categoryAverages[d.category_id] ?? 4.0;
+        dishScoresSum += (R * v + C * BAYESIAN_M) / (v + BAYESIAN_M);
+        validDishesCount += 1;
+        totalReviews += v;
+      });
+    }
+
+    const smartScore = validDishesCount > 0 ? (dishScoresSum / validDishesCount) : 0.0;
+
+    return {
+      id: b.id,
+      name: b.name,
+      address: b.address,
+      latitude: b.lat,
+      longitude: b.lng,
+      city_id: b.city_id,
+      district_id: b.district_id,
+      city_name: b.cities?.name || '—',
+      district_name: b.districts?.name || '—',
+      smart_score: smartScore,       // EXPLICIT MAPPING
+      review_count: totalReviews,    // EXPLICIT MAPPING
+      dishes: b.dishes || [],
+      distance_km: distanceMap[b.id] ?? null, // MERGE RPC DISTANCE
+    };
+  });
+
+  // Apply category filter
+  if (selectedCategoryIds?.length > 0) {
+    results = results.filter(b => b.dishes.some(d => selectedCategoryIds.includes(d.category_id)));
+  }
+
+  // Apply name fuzzy filter
+  if (nameQuery?.trim().length > 0) {
+    const normQ = nameQuery.trim().toLowerCase();
+    results = results.filter(b => b.name.toLowerCase().includes(normQ));
+  }
+
+  // Step 4: Ensure final array is explicitly sorted by rating (descending)
+  results.sort((a, b) => b.smart_score - a.smart_score);
+
+  return results;
 };
