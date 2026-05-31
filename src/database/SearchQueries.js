@@ -24,6 +24,46 @@ const BAYESIAN_M = 10;
 export const normalizeText = (text) => {
   if (!text) return '';
   return text
+    .replace(/[.'"-]/g, '')
+    .replace(/\s+/g, '')
+    .trim();
+};
+
+// ─── GLOBAL AVERAGES ────────────────────────────────────────────────────────
+// Fetches the global baseline averages across the entire app for Bayesian math
+export const getGlobalCategoryAverages = async () => {
+  const { data: dishes, error } = await supabase
+    .from('dishes')
+    .select('category_id, avg_rating');
+
+  if (error) {
+    console.error('getGlobalCategoryAverages error:', error);
+    return { categoryAverages: {}, globalAvg: 4.0 };
+  }
+
+  const categoryGroups = {};
+  let totalSum = 0;
+  let totalCount = 0;
+
+  dishes.forEach(d => {
+    const catId = d.category_id;
+    if (!categoryGroups[catId]) categoryGroups[catId] = { sum: 0, count: 0 };
+    categoryGroups[catId].sum += (d.avg_rating || 0);
+    categoryGroups[catId].count += 1;
+    totalSum += (d.avg_rating || 0);
+    totalCount += 1;
+  });
+
+  const categoryAverages = {};
+  Object.keys(categoryGroups).forEach(catId => {
+    const g = categoryGroups[catId];
+    categoryAverages[catId] = g.count > 0 ? g.sum / g.count : 4.0;
+  });
+
+  const globalAvg = totalCount > 0 ? totalSum / totalCount : 4.0;
+  
+  return { categoryAverages, globalAvg };
+};
     .replace(/['’"״`\-‐‑‒–—_.]/g, '') // remove punctuation: apostrophes, periods, hyphens, quotes
     .replace(/\s+/g, '')              // remove whitespaces for typo-tolerant compact comparison
     .toLowerCase();
@@ -139,32 +179,8 @@ export const getRankedRestaurants = async ({ nameQuery, searchMode, selectedLoca
   
   if (!businesses || businesses.length === 0) return [];
 
-  // 2. Gather all dishes in the database to calculate category averages (C)
-  const allDishes = [];
-  businesses.forEach(b => {
-    if (b.dishes) {
-      b.dishes.forEach(d => {
-        allDishes.push(d);
-      });
-    }
-  });
-
-  const categoryAverages = {};
-  const categoryGroups = {};
-  allDishes.forEach(d => {
-    const catId = d.category_id;
-    if (!categoryGroups[catId]) {
-      categoryGroups[catId] = { sum: 0, count: 0 };
-    }
-    categoryGroups[catId].sum += (d.avg_rating || 0);
-    categoryGroups[catId].count += 1;
-  });
-
-  Object.keys(categoryGroups).forEach(catId => {
-    const group = categoryGroups[catId];
-    categoryAverages[catId] = group.count > 0 ? group.sum / group.count : 4.0;
-  });
-
+  // 2. Fetch Global Baseline Averages
+  const { categoryAverages } = await getGlobalCategoryAverages();
   const m = BAYESIAN_M;
 
   // 3. Compute dynamic Smart Score for each business
@@ -348,10 +364,10 @@ export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }
 
   console.log("Detailed Dish Data (Before mapping):", JSON.stringify(rawDishes.slice(0, 2), null, 2));
 
-  // Compute global average rating (C) across this local set (or we could use a fixed 4.0)
+  // Compute global average rating (C) using global baseline, not just the local radius
   const BAYESIAN_M = 10;
-  const totalRatingSum = rawDishes.reduce((s, d) => s + (d.avg_rating || 0), 0);
-  const C = rawDishes.length > 0 ? totalRatingSum / rawDishes.length : 4.0;
+  const { globalAvg } = await getGlobalCategoryAverages();
+  const C = globalAvg;
 
   // Step 3: Merge and explicitly map properties
   const dishes = rawDishes.map(d => {
@@ -436,23 +452,9 @@ export const getNearbyRestaurants = async ({ userLat, userLon, radiusKm, nameQue
 
   console.log("Detailed Business Data (First 2):", JSON.stringify(businesses.slice(0, 2), null, 2));
 
-  // Compute smart scores (exactly as in standard manual search)
+  // Compute smart scores using GLOBAL database averages
   const BAYESIAN_M = 10;
-  const allDishes = [];
-  businesses.forEach(b => { if (b.dishes) allDishes.push(...b.dishes); });
-
-  const categoryGroups = {};
-  allDishes.forEach(d => {
-    const catId = d.category_id;
-    if (!categoryGroups[catId]) categoryGroups[catId] = { sum: 0, count: 0 };
-    categoryGroups[catId].sum += (d.avg_rating || 0);
-    categoryGroups[catId].count += 1;
-  });
-  const categoryAverages = {};
-  Object.keys(categoryGroups).forEach(catId => {
-    const g = categoryGroups[catId];
-    categoryAverages[catId] = g.count > 0 ? g.sum / g.count : 4.0;
-  });
+  const { categoryAverages } = await getGlobalCategoryAverages();
 
   // Step 3: Explicit Property Mapping & Merge
   let results = businesses.map(b => {

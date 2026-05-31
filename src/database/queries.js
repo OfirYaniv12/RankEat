@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { getGlobalCategoryAverages } from './SearchQueries';
 
 const BAYESIAN_M = 10; // minimum votes threshold
 
@@ -105,9 +106,9 @@ export const getRankedDishes = async ({ categoryId, districtId, cityId, nearbyBu
     return { dishes: [], globalAvg: 0 };
   }
 
-  // Compute global average rating (C) across this filtered set
-  const totalRatingSum = rawDishes.reduce((sum, d) => sum + (d.avg_rating || 0), 0);
-  const C = rawDishes.length > 0 ? totalRatingSum / rawDishes.length : 4.0;
+  // 3. Fetch Global Baseline Average for 'C' instead of computing from local subset
+  const { globalAvg } = await getGlobalCategoryAverages();
+  const C = globalAvg;
   const m = BAYESIAN_M;
 
   // Apply Bayesian Average: W = (R * v + C * m) / (v + m)
