@@ -28,10 +28,11 @@ const SEARCH_MODES = [
   { id: 'ארצי', label: 'ארצי' },
 ];
 
-const LOCATION_MODES = [
-  { id: 'nearMe',   label: 'קרוב אליי 📍' },
-  { id: 'custom',   label: 'מרחק מותאם' },
-  { id: 'manual',   label: 'בחירה ידנית' },
+// All location mode options — filtered if permission denied
+const ALL_LOC_MODES = [
+  { id: 'nearMe', label: 'קרוב אליי 📍' },
+  { id: 'custom', label: 'בחירת מרחק ממני' },
+  { id: 'manual', label: 'בחירה ידנית' },
 ];
 
 export default function SearchScreen({ navigation }) {
@@ -82,14 +83,16 @@ export default function SearchScreen({ navigation }) {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
 
   // ─── LOCATION PERMISSION & COORDS STATE ─────────────────────────────────────
-  const [locationPermission, setLocationPermission] = useState(null); // 'granted' | 'denied' | null
-  const [userCoords, setUserCoords] = useState(null);  // { latitude, longitude }
+  const [locationPermission, setLocationPermission] = useState(null);
+  const [userCoords, setUserCoords] = useState(null);
 
-  // Active location mode for both Dish & Restaurant panels
-  const [dishLocMode,       setDishLocMode]       = useState('nearMe');   // 'nearMe'|'custom'|'manual'
-  const [dishCustomRadius,  setDishCustomRadius]  = useState('5');
-  const [restLocMode,       setRestLocMode]       = useState('nearMe');   // 'nearMe'|'custom'|'manual'
-  const [restCustomRadius,  setRestCustomRadius]  = useState('5');
+  const [dishLocMode,            setDishLocMode]            = useState('nearMe');
+  const [dishCustomRadius,       setDishCustomRadius]       = useState('5');
+  const [isDishLocModeOpen,      setIsDishLocModeOpen]      = useState(false);
+
+  const [restLocMode,            setRestLocMode]            = useState('nearMe');
+  const [restCustomRadius,       setRestCustomRadius]       = useState('5');
+  const [isRestLocModeOpen,      setIsRestLocModeOpen]      = useState(false);
 
   useEffect(() => {
     loadData();
@@ -163,6 +166,8 @@ export default function SearchScreen({ navigation }) {
     setIsLocationDropdownOpen(false);
     setIsRestaurantModeDropdownOpen(false);
     setIsRestaurantLocationDropdownOpen(false);
+    setIsDishLocModeOpen(false);
+    setIsRestLocModeOpen(false);
   };
 
   const getInitialRestaurantLocations = () => {
@@ -417,12 +422,21 @@ export default function SearchScreen({ navigation }) {
     }
   };
 
+  // Compute which loc modes are available based on permission
+  const availableLocModes = locationPermission === 'denied'
+    ? ALL_LOC_MODES.filter(m => m.id === 'manual')
+    : ALL_LOC_MODES;
+
+  const getLocModeLabel = (mode) => ALL_LOC_MODES.find(m => m.id === mode)?.label ?? mode;
+
   const isAnyDropdownOpen =
     isCategoryDropdownOpen ||
     isModeDropdownOpen ||
     isLocationDropdownOpen ||
     isRestaurantModeDropdownOpen ||
-    isRestaurantLocationDropdownOpen;
+    isRestaurantLocationDropdownOpen ||
+    isDishLocModeOpen ||
+    isRestLocModeOpen;
 
   const translateX = slideAnim.interpolate({
     inputRange: [0, 1],
@@ -548,39 +562,44 @@ export default function SearchScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* Location Mode Pills: Near Me / Custom / Manual */}
-              <View style={[styles.inputRow, isMobile && { width: '100%' }, { marginTop: SPACING.lg, zIndex: 1 }]}>
-                <Text style={styles.label}>אופן חיפוש לפי מיקום</Text>
-                <View style={styles.locModePills}>
-                  {LOCATION_MODES.map((m) => {
-                    const isDisabled = m.id !== 'manual' && locationPermission === 'denied';
-                    const isActive   = dishLocMode === m.id;
-                    return (
-                      <TouchableOpacity
-                        key={m.id}
-                        style={[
-                          styles.locModePill,
-                          isActive   && styles.locModePillActive,
-                          isDisabled && styles.locModePillDisabled,
-                        ]}
-                        onPress={() => { if (!isDisabled) setDishLocMode(m.id); }}
-                        activeOpacity={isDisabled ? 1 : 0.8}
-                      >
-                        <Text style={[
-                          styles.locModePillText,
-                          isActive   && styles.locModePillTextActive,
-                          isDisabled && styles.locModePillTextDisabled,
-                        ]}>
-                          {m.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+              {/* Location Mode Dropdown */}
+              <View style={[styles.inputRow, isMobile && { width: '100%' }, { marginTop: SPACING.lg, zIndex: isDishLocModeOpen ? 10 : 2 }]}>
+                <View style={styles.inputGroup}>
+                  <TouchableOpacity
+                    style={[styles.modeSelectorBox, isDishLocModeOpen && styles.focusedBox]}
+                    onPress={() => {
+                      const next = !isDishLocModeOpen;
+                      closeAllDropdowns();
+                      setIsDishLocModeOpen(next);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.modeText}>{getLocModeLabel(dishLocMode)}</Text>
+                    <Text style={styles.dropdownArrow}>▼</Text>
+                  </TouchableOpacity>
+
+                  {isDishLocModeOpen && (
+                    <View style={styles.dropdown}>
+                      {availableLocModes.map((m) => (
+                        <TouchableOpacity
+                          key={m.id}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setDishLocMode(m.id);
+                            setIsDishLocModeOpen(false);
+                          }}
+                        >
+                          <Text style={[styles.dropdownText, dishLocMode === m.id && { color: COLORS.accent, fontFamily: FONTS.bold }]}>
+                            {m.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
                 </View>
-                {locationPermission === 'denied' && (
-                  <Text style={styles.locationDeniedNote}>📵 גישה למיקום נדחתה. הפעל מיקום בהגדרות לאפשרויות קרוב אליי.</Text>
-                )}
-                {dishLocMode === 'custom' && locationPermission === 'granted' && (
+
+                {/* Custom radius input */}
+                {dishLocMode === 'custom' && (
                   <View style={[styles.searchBox, { marginTop: SPACING.sm }]}>
                     <Text style={styles.searchIcon}>📏</Text>
                     <TextInput
@@ -593,6 +612,10 @@ export default function SearchScreen({ navigation }) {
                       textAlign="right"
                     />
                   </View>
+                )}
+
+                {locationPermission === 'denied' && (
+                  <Text style={styles.locationDeniedNote}>📵 גישה למיקום נדחתה — קרוב אליי אינו זמין.</Text>
                 )}
               </View>
 
@@ -718,39 +741,44 @@ export default function SearchScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* Location Mode Pills for Restaurant */}
-              <View style={[styles.inputRow, isMobile && { width: '100%' }, { marginTop: SPACING.lg, zIndex: 1 }]}>
-                <Text style={styles.label}>אופן חיפוש לפי מיקום</Text>
-                <View style={styles.locModePills}>
-                  {LOCATION_MODES.map((m) => {
-                    const isDisabled = m.id !== 'manual' && locationPermission === 'denied';
-                    const isActive   = restLocMode === m.id;
-                    return (
-                      <TouchableOpacity
-                        key={m.id}
-                        style={[
-                          styles.locModePill,
-                          isActive   && styles.locModePillActive,
-                          isDisabled && styles.locModePillDisabled,
-                        ]}
-                        onPress={() => { if (!isDisabled) setRestLocMode(m.id); }}
-                        activeOpacity={isDisabled ? 1 : 0.8}
-                      >
-                        <Text style={[
-                          styles.locModePillText,
-                          isActive   && styles.locModePillTextActive,
-                          isDisabled && styles.locModePillTextDisabled,
-                        ]}>
-                          {m.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+              {/* Location Mode Dropdown for Restaurant */}
+              <View style={[styles.inputRow, isMobile && { width: '100%' }, { marginTop: SPACING.lg, zIndex: isRestLocModeOpen ? 10 : 2 }]}>
+                <View style={styles.inputGroup}>
+                  <TouchableOpacity
+                    style={[styles.modeSelectorBox, isRestLocModeOpen && styles.focusedBox]}
+                    onPress={() => {
+                      const next = !isRestLocModeOpen;
+                      closeAllDropdowns();
+                      setIsRestLocModeOpen(next);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.modeText}>{getLocModeLabel(restLocMode)}</Text>
+                    <Text style={styles.dropdownArrow}>▼</Text>
+                  </TouchableOpacity>
+
+                  {isRestLocModeOpen && (
+                    <View style={styles.dropdown}>
+                      {availableLocModes.map((m) => (
+                        <TouchableOpacity
+                          key={m.id}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setRestLocMode(m.id);
+                            setIsRestLocModeOpen(false);
+                          }}
+                        >
+                          <Text style={[styles.dropdownText, restLocMode === m.id && { color: COLORS.accent, fontFamily: FONTS.bold }]}>
+                            {m.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
                 </View>
-                {locationPermission === 'denied' && (
-                  <Text style={styles.locationDeniedNote}>📵 גישה למיקום נדחתה. הפעל מיקום בהגדרות לאפשרויות קרוב אליי.</Text>
-                )}
-                {restLocMode === 'custom' && locationPermission === 'granted' && (
+
+                {/* Custom radius input */}
+                {restLocMode === 'custom' && (
                   <View style={[styles.searchBox, { marginTop: SPACING.sm }]}>
                     <Text style={styles.searchIcon}>📏</Text>
                     <TextInput
@@ -763,6 +791,10 @@ export default function SearchScreen({ navigation }) {
                       textAlign="right"
                     />
                   </View>
+                )}
+
+                {locationPermission === 'denied' && (
+                  <Text style={styles.locationDeniedNote}>📵 גישה למיקום נדחתה — קרוב אליי אינו זמין.</Text>
                 )}
               </View>
 
@@ -1222,45 +1254,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#FFFFFF',
     writingDirection: 'rtl',
-  },
-  locModePills: {
-    flexDirection: 'row-reverse',
-    gap: 8,
-    marginTop: SPACING.xs,
-    marginBottom: SPACING.xs,
-    flexWrap: 'wrap',
-  },
-  locModePill: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: RADIUS.pill,
-    backgroundColor: '#1C1F26',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  locModePillActive: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  locModePillDisabled: {
-    opacity: 0.35,
-  },
-  locModePillText: {
-    fontFamily: FONTS.semibold,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  locModePillTextActive: {
-    color: '#FFFFFF',
-    fontFamily: FONTS.bold,
-  },
-  locModePillTextDisabled: {
-    color: COLORS.textSecondary,
   },
   locationDeniedNote: {
     fontFamily: FONTS.regular,
