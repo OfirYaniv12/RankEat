@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import * as Location from 'expo-location';
 import {
   View,
   Text,
@@ -25,6 +26,12 @@ const SEARCH_MODES = [
   { id: 'עירוני', label: 'עירוני' },
   { id: 'אזורי', label: 'אזורי' },
   { id: 'ארצי', label: 'ארצי' },
+];
+
+const LOCATION_MODES = [
+  { id: 'nearMe',   label: 'קרוב אליי 📍' },
+  { id: 'custom',   label: 'מרחק מותאם' },
+  { id: 'manual',   label: 'בחירה ידנית' },
 ];
 
 export default function SearchScreen({ navigation }) {
@@ -74,9 +81,41 @@ export default function SearchScreen({ navigation }) {
   const [filteredRestaurantLocations, setFilteredRestaurantLocations] = useState([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
 
+  // ─── LOCATION PERMISSION & COORDS STATE ─────────────────────────────────────
+  const [locationPermission, setLocationPermission] = useState(null); // 'granted' | 'denied' | null
+  const [userCoords, setUserCoords] = useState(null);  // { latitude, longitude }
+
+  // Active location mode for both Dish & Restaurant panels
+  const [dishLocMode,       setDishLocMode]       = useState('nearMe');   // 'nearMe'|'custom'|'manual'
+  const [dishCustomRadius,  setDishCustomRadius]  = useState('5');
+  const [restLocMode,       setRestLocMode]       = useState('nearMe');   // 'nearMe'|'custom'|'manual'
+  const [restCustomRadius,  setRestCustomRadius]  = useState('5');
+
   useEffect(() => {
     loadData();
+    requestLocationPermission();
   }, []);
+
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        setLocationPermission('granted');
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      } else {
+        setLocationPermission('denied');
+        // Fall back to manual mode when denied
+        setDishLocMode('manual');
+        setRestLocMode('manual');
+      }
+    } catch (e) {
+      console.warn('Location permission error:', e);
+      setLocationPermission('denied');
+      setDishLocMode('manual');
+      setRestLocMode('manual');
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -302,38 +341,73 @@ export default function SearchScreen({ navigation }) {
         showAlert({ title: 'שגיאה', message: 'יש לבחור קטגוריה', type: 'error', primaryButtonText: 'הבנתי' });
         return;
       }
-      if (searchMode !== 'ארצי' && !selectedLocation) {
+      if (dishLocMode === 'manual' && searchMode !== 'ארצי' && !selectedLocation) {
         showAlert({ title: 'שגיאה', message: 'יש לבחור מיקום או לשנות חיפוש לארצי', type: 'warning', primaryButtonText: 'הבנתי' });
         return;
       }
 
-      navigation.navigate('Rankings', {
+      // Build navigation params based on dish location mode
+      const dishNavParams = {
         searchType: 'dish',
         category: selectedCategory,
-        district: searchMode === 'אזורי' ? selectedLocation : null,
-        city: searchMode === 'עירוני' ? selectedLocation : null,
-      });
+        district: dishLocMode === 'manual' && searchMode === 'אזורי' ? selectedLocation : null,
+        city:     dishLocMode === 'manual' && searchMode === 'עירוני' ? selectedLocation : null,
+      };
+
+      if (dishLocMode === 'nearMe' && userCoords) {
+        dishNavParams.userLat    = userCoords.latitude;
+        dishNavParams.userLon    = userCoords.longitude;
+        dishNavParams.radiusKm   = 5;
+        dishNavParams.locMode    = 'nearMe';
+      } else if (dishLocMode === 'custom' && userCoords) {
+        const r = parseFloat(dishCustomRadius);
+        if (!isNaN(r) && r > 0) {
+          dishNavParams.userLat  = userCoords.latitude;
+          dishNavParams.userLon  = userCoords.longitude;
+          dishNavParams.radiusKm = r;
+          dishNavParams.locMode  = 'custom';
+        }
+      }
+
+      navigation.navigate('Rankings', dishNavParams);
     } else {
       // Restaurant Search Validation & Submit
       setLoading(true);
       try {
         const sortedRestaurants = await getRankedRestaurants({
           nameQuery: restaurantNameQuery,
-          searchMode: restaurantSearchMode,
-          selectedLocation: selectedRestaurantLocation,
+          searchMode: restLocMode === 'manual' ? restaurantSearchMode : 'ארצי',
+          selectedLocation: restLocMode === 'manual' ? selectedRestaurantLocation : null,
           selectedCategoryIds,
           userCityId: user?.city_id,
           userDistrictId: user?.district_id,
         });
 
-        navigation.navigate('Rankings', {
+        const restaurantNavParams = {
           searchType: 'restaurant',
           restaurants: sortedRestaurants,
           nameQuery: restaurantNameQuery,
           searchMode: restaurantSearchMode,
           selectedLocation: selectedRestaurantLocation,
           selectedCategoryIds,
-        });
+        };
+
+        if (restLocMode === 'nearMe' && userCoords) {
+          restaurantNavParams.userLat  = userCoords.latitude;
+          restaurantNavParams.userLon  = userCoords.longitude;
+          restaurantNavParams.radiusKm = 5;
+          restaurantNavParams.locMode  = 'nearMe';
+        } else if (restLocMode === 'custom' && userCoords) {
+          const r = parseFloat(restCustomRadius);
+          if (!isNaN(r) && r > 0) {
+            restaurantNavParams.userLat  = userCoords.latitude;
+            restaurantNavParams.userLon  = userCoords.longitude;
+            restaurantNavParams.radiusKm = r;
+            restaurantNavParams.locMode  = 'custom';
+          }
+        }
+
+        navigation.navigate('Rankings', restaurantNavParams);
       } catch (e) {
         console.error('Restaurant search submit error:', e);
         showAlert({ title: 'שגיאה', message: 'שגיאה בביצוע החיפוש', type: 'error', primaryButtonText: 'הבנתי' });
@@ -474,8 +548,56 @@ export default function SearchScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* Row 2: Search Mode & Location */}
-              <View style={[
+              {/* Location Mode Pills: Near Me / Custom / Manual */}
+              <View style={[styles.inputRow, isMobile && { width: '100%' }, { marginTop: SPACING.lg, zIndex: 1 }]}>
+                <Text style={styles.label}>אופן חיפוש לפי מיקום</Text>
+                <View style={styles.locModePills}>
+                  {LOCATION_MODES.map((m) => {
+                    const isDisabled = m.id !== 'manual' && locationPermission === 'denied';
+                    const isActive   = dishLocMode === m.id;
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        style={[
+                          styles.locModePill,
+                          isActive   && styles.locModePillActive,
+                          isDisabled && styles.locModePillDisabled,
+                        ]}
+                        onPress={() => { if (!isDisabled) setDishLocMode(m.id); }}
+                        activeOpacity={isDisabled ? 1 : 0.8}
+                      >
+                        <Text style={[
+                          styles.locModePillText,
+                          isActive   && styles.locModePillTextActive,
+                          isDisabled && styles.locModePillTextDisabled,
+                        ]}>
+                          {m.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {locationPermission === 'denied' && (
+                  <Text style={styles.locationDeniedNote}>📵 גישה למיקום נדחתה. הפעל מיקום בהגדרות לאפשרויות קרוב אליי.</Text>
+                )}
+                {dishLocMode === 'custom' && locationPermission === 'granted' && (
+                  <View style={[styles.searchBox, { marginTop: SPACING.sm }]}>
+                    <Text style={styles.searchIcon}>📏</Text>
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="הזן מרחק בק״מ"
+                      placeholderTextColor={COLORS.textSecondary}
+                      value={dishCustomRadius}
+                      onChangeText={setDishCustomRadius}
+                      keyboardType="numeric"
+                      textAlign="right"
+                    />
+                  </View>
+                )}
+              </View>
+
+              {/* Row 2: Search Mode & Location — only shown in manual mode */}
+              {dishLocMode === 'manual' && (<View style={[
                 styles.inputRow, 
                 isMobile ? styles.row2Mobile : styles.row2, 
                 isMobile && { width: '100%' },
@@ -570,7 +692,7 @@ export default function SearchScreen({ navigation }) {
                     </View>
                   )}
                 </View>
-              </View>
+              </View>)}
             </View>
           ) : (
             /* ────────────────────────────────────────────────────────────────
@@ -596,8 +718,56 @@ export default function SearchScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* Row 2: Structured Mode & Location */}
-              <View style={[
+              {/* Location Mode Pills for Restaurant */}
+              <View style={[styles.inputRow, isMobile && { width: '100%' }, { marginTop: SPACING.lg, zIndex: 1 }]}>
+                <Text style={styles.label}>אופן חיפוש לפי מיקום</Text>
+                <View style={styles.locModePills}>
+                  {LOCATION_MODES.map((m) => {
+                    const isDisabled = m.id !== 'manual' && locationPermission === 'denied';
+                    const isActive   = restLocMode === m.id;
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        style={[
+                          styles.locModePill,
+                          isActive   && styles.locModePillActive,
+                          isDisabled && styles.locModePillDisabled,
+                        ]}
+                        onPress={() => { if (!isDisabled) setRestLocMode(m.id); }}
+                        activeOpacity={isDisabled ? 1 : 0.8}
+                      >
+                        <Text style={[
+                          styles.locModePillText,
+                          isActive   && styles.locModePillTextActive,
+                          isDisabled && styles.locModePillTextDisabled,
+                        ]}>
+                          {m.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {locationPermission === 'denied' && (
+                  <Text style={styles.locationDeniedNote}>📵 גישה למיקום נדחתה. הפעל מיקום בהגדרות לאפשרויות קרוב אליי.</Text>
+                )}
+                {restLocMode === 'custom' && locationPermission === 'granted' && (
+                  <View style={[styles.searchBox, { marginTop: SPACING.sm }]}>
+                    <Text style={styles.searchIcon}>📏</Text>
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="הזן מרחק בק״מ"
+                      placeholderTextColor={COLORS.textSecondary}
+                      value={restCustomRadius}
+                      onChangeText={setRestCustomRadius}
+                      keyboardType="numeric"
+                      textAlign="right"
+                    />
+                  </View>
+                )}
+              </View>
+
+              {/* Row 2: Mode & Location — only shown in manual mode */}
+              {restLocMode === 'manual' && (<View style={[
                 styles.inputRow, 
                 isMobile ? styles.row2Mobile : styles.row2, 
                 isMobile && { width: '100%' },
@@ -692,8 +862,7 @@ export default function SearchScreen({ navigation }) {
                     </View>
                   )}
                 </View>
-              </View>
-
+              </View>)}
               {/* Row 3: Category Multi-select Selection Chips */}
               <View style={[styles.inputRow, isMobile && { width: '100%' }, { zIndex: 1, marginTop: SPACING.lg }]}>
                 <View style={styles.chipsContainer}>
@@ -1053,6 +1222,53 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#FFFFFF',
     writingDirection: 'rtl',
+  },
+  locModePills: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+    flexWrap: 'wrap',
+  },
+  locModePill: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: RADIUS.pill,
+    backgroundColor: '#1C1F26',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  locModePillActive: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  locModePillDisabled: {
+    opacity: 0.35,
+  },
+  locModePillText: {
+    fontFamily: FONTS.semibold,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  locModePillTextActive: {
+    color: '#FFFFFF',
+    fontFamily: FONTS.bold,
+  },
+  locModePillTextDisabled: {
+    color: COLORS.textSecondary,
+  },
+  locationDeniedNote: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: '#F4A261',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    marginTop: 6,
   },
   circle1: {
     position: 'absolute',
