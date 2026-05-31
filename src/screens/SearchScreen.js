@@ -80,8 +80,8 @@ export default function SearchScreen({ navigation }) {
   const [locationPermission, setLocationPermission] = useState(null);
   const [userCoords, setUserCoords] = useState(null);
 
-  const [dishCustomRadius,       setDishCustomRadius]       = useState('5');
-  const [restCustomRadius,       setRestCustomRadius]       = useState('5');
+  const [dishCustomRadius,       setDishCustomRadius]       = useState('');
+  const [restCustomRadius,       setRestCustomRadius]       = useState('');
 
   useEffect(() => {
     loadData();
@@ -140,12 +140,12 @@ export default function SearchScreen({ navigation }) {
 
   // --- Dish Categories Helpers ---
   const getInitialCategories = () => {
-    return [...categories].sort((a, b) => a.name.localeCompare(b.name, 'he')).slice(0, 4);
+    return [...categories].sort((a, b) => a.name.localeCompare(b.name, 'he'));
   };
 
   const getInitialLocations = () => {
     const sourceData = searchMode === 'עירוני' ? cities : districts;
-    return [...sourceData].sort((a, b) => a.name.localeCompare(b.name, 'he')).slice(0, 4);
+    return [...sourceData].sort((a, b) => a.name.localeCompare(b.name, 'he'));
   };
 
   const closeAllDropdowns = () => {
@@ -158,7 +158,7 @@ export default function SearchScreen({ navigation }) {
 
   const getInitialRestaurantLocations = () => {
     const sourceData = restaurantSearchMode === 'עירוני' ? cities : districts;
-    return [...sourceData].sort((a, b) => a.name.localeCompare(b.name, 'he')).slice(0, 4);
+    return [...sourceData].sort((a, b) => a.name.localeCompare(b.name, 'he'));
   };
 
   const handleRestaurantLocationSearch = (text) => {
@@ -172,7 +172,6 @@ export default function SearchScreen({ navigation }) {
         sourceData
           .filter((l) => l.name.toLowerCase().includes(text.toLowerCase()))
           .sort((a, b) => a.name.localeCompare(b.name, 'he'))
-          .slice(0, 4)
       );
       setIsRestaurantLocationDropdownOpen(true);
     } else {
@@ -222,7 +221,6 @@ export default function SearchScreen({ navigation }) {
         categories
           .filter((c) => c.name.toLowerCase().includes(text.toLowerCase()))
           .sort((a, b) => a.name.localeCompare(b.name, 'he'))
-          .slice(0, 4)
       );
       setIsCategoryDropdownOpen(true);
     } else {
@@ -267,7 +265,6 @@ export default function SearchScreen({ navigation }) {
         sourceData
           .filter((l) => l.name.toLowerCase().includes(text.toLowerCase()))
           .sort((a, b) => a.name.localeCompare(b.name, 'he'))
-          .slice(0, 4)
       );
       setIsLocationDropdownOpen(true);
     } else {
@@ -624,7 +621,7 @@ export default function SearchScreen({ navigation }) {
                       <Text style={styles.searchIcon}>📏</Text>
                       <TextInput
                         style={styles.searchInput}
-                        placeholder="הזן מרחק בק״מ"
+                        placeholder="הקלד מרחק בקילומטרים"
                         placeholderTextColor={COLORS.textSecondary}
                         value={dishCustomRadius}
                         onChangeText={setDishCustomRadius}
@@ -763,7 +760,7 @@ export default function SearchScreen({ navigation }) {
                       <Text style={styles.searchIcon}>📏</Text>
                       <TextInput
                         style={styles.searchInput}
-                        placeholder="הזן מרחק בק״מ"
+                        placeholder="הקלד מרחק בקילומטרים"
                         placeholderTextColor={COLORS.textSecondary}
                         value={restCustomRadius}
                         onChangeText={setRestCustomRadius}
