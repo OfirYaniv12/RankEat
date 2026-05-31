@@ -24,9 +24,9 @@ const BAYESIAN_M = 10;
 export const normalizeText = (text) => {
   if (!text) return '';
   return text
-    .replace(/[.'"-]/g, '')
-    .replace(/\s+/g, '')
-    .trim();
+    .replace(/['’"״`\-‐‑‒–—_.]/g, '') // remove punctuation: apostrophes, periods, hyphens, quotes
+    .replace(/\s+/g, '')              // remove whitespaces for typo-tolerant compact comparison
+    .toLowerCase();
 };
 
 // ─── GLOBAL AVERAGES ────────────────────────────────────────────────────────
@@ -63,10 +63,6 @@ export const getGlobalCategoryAverages = async () => {
   const globalAvg = totalCount > 0 ? totalSum / totalCount : 4.0;
   
   return { categoryAverages, globalAvg };
-};
-    .replace(/['’"״`\-‐‑‒–—_.]/g, '') // remove punctuation: apostrophes, periods, hyphens, quotes
-    .replace(/\s+/g, '')              // remove whitespaces for typo-tolerant compact comparison
-    .toLowerCase();
 };
 
 // Levenshtein Distance implementation for fuzzy matching
