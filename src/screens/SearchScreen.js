@@ -23,16 +23,11 @@ import { useAlert } from '../context/AlertContext';
 I18nManager.forceRTL(true);
 
 const SEARCH_MODES = [
+  { id: 'nearMe', label: 'קרוב אליי' },
+  { id: 'custom', label: 'בחירת מרחק ממני' },
   { id: 'עירוני', label: 'עירוני' },
   { id: 'אזורי', label: 'אזורי' },
   { id: 'ארצי', label: 'ארצי' },
-];
-
-// All location mode options — filtered if permission denied
-const ALL_LOC_MODES = [
-  { id: 'nearMe', label: 'קרוב אליי 📍' },
-  { id: 'custom', label: 'בחירת מרחק ממני' },
-  { id: 'manual', label: 'בחירה ידנית' },
 ];
 
 export default function SearchScreen({ navigation }) {
@@ -63,8 +58,7 @@ export default function SearchScreen({ navigation }) {
   const [filteredCategories, setFilteredCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-
-  const [searchMode, setSearchMode] = useState('עירוני');
+  const [searchMode, setSearchMode] = useState('nearMe');
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
 
   const [locationQuery, setLocationQuery] = useState('');
@@ -74,7 +68,7 @@ export default function SearchScreen({ navigation }) {
 
   // ─── RESTAURANT SEARCH STATE (New) ──────────────────────────────────────────
   const [restaurantNameQuery, setRestaurantNameQuery] = useState('');
-  const [restaurantSearchMode, setRestaurantSearchMode] = useState('עירוני');
+  const [restaurantSearchMode, setRestaurantSearchMode] = useState('nearMe');
   const [isRestaurantModeDropdownOpen, setIsRestaurantModeDropdownOpen] = useState(false);
   const [restaurantLocationQuery, setRestaurantLocationQuery] = useState('');
   const [selectedRestaurantLocation, setSelectedRestaurantLocation] = useState(null);
@@ -86,13 +80,8 @@ export default function SearchScreen({ navigation }) {
   const [locationPermission, setLocationPermission] = useState(null);
   const [userCoords, setUserCoords] = useState(null);
 
-  const [dishLocMode,            setDishLocMode]            = useState('nearMe');
   const [dishCustomRadius,       setDishCustomRadius]       = useState('5');
-  const [isDishLocModeOpen,      setIsDishLocModeOpen]      = useState(false);
-
-  const [restLocMode,            setRestLocMode]            = useState('nearMe');
   const [restCustomRadius,       setRestCustomRadius]       = useState('5');
-  const [isRestLocModeOpen,      setIsRestLocModeOpen]      = useState(false);
 
   useEffect(() => {
     loadData();
@@ -108,15 +97,14 @@ export default function SearchScreen({ navigation }) {
         setUserCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       } else {
         setLocationPermission('denied');
-        // Fall back to manual mode when denied
-        setDishLocMode('manual');
-        setRestLocMode('manual');
+        setSearchMode('עירוני');
+        setRestaurantSearchMode('עירוני');
       }
     } catch (e) {
       console.warn('Location permission error:', e);
       setLocationPermission('denied');
-      setDishLocMode('manual');
-      setRestLocMode('manual');
+      setSearchMode('עירוני');
+      setRestaurantSearchMode('עירוני');
     }
   };
 
@@ -166,8 +154,6 @@ export default function SearchScreen({ navigation }) {
     setIsLocationDropdownOpen(false);
     setIsRestaurantModeDropdownOpen(false);
     setIsRestaurantLocationDropdownOpen(false);
-    setIsDishLocModeOpen(false);
-    setIsRestLocModeOpen(false);
   };
 
   const getInitialRestaurantLocations = () => {
@@ -223,6 +209,7 @@ export default function SearchScreen({ navigation }) {
 
   const getRestaurantLocationPlaceholder = () => {
     if (restaurantSearchMode === 'ארצי') return 'כל הארץ\u200F';
+    if (restaurantSearchMode === 'nearMe') return 'רדיוס קבוע (5 ק״מ)\u200F';
     if (restaurantLocationQuery.length > 0) return '';
     return restaurantSearchMode === 'עירוני' ? 'הזן את שם העיר המבוקשת\u200F' : 'הזן את שם האזור המבוקש\u200F';
   };
@@ -309,6 +296,7 @@ export default function SearchScreen({ navigation }) {
 
   const getDishLocationPlaceholder = () => {
     if (searchMode === 'ארצי') return 'כל הארץ\u200F';
+    if (searchMode === 'nearMe') return 'רדיוס קבוע (5 ק״מ)\u200F';
     if (locationQuery.length > 0) return '';
     return searchMode === 'עירוני' ? 'הזן את שם העיר המבוקשת\u200F' : 'הזן את שם האזור המבוקש\u200F';
   };
@@ -341,18 +329,16 @@ export default function SearchScreen({ navigation }) {
   // --- Submits ---
   const handleSearchSubmit = async () => {
     if (activeTab === 'dish') {
-      // Legacy Dish Search Validation & Submit
       if (!selectedCategory) {
         showAlert({ title: 'שגיאה', message: 'יש לבחור קטגוריה', type: 'error', primaryButtonText: 'הבנתי' });
         return;
       }
-      if (dishLocMode === 'manual' && searchMode !== 'ארצי' && !selectedLocation) {
+      if (searchMode !== 'ארצי' && !selectedLocation) {
         showAlert({ title: 'שגיאה', message: 'יש לבחור מיקום או לשנות חיפוש לארצי', type: 'warning', primaryButtonText: 'הבנתי' });
         return;
       }
 
-      // Build navigation params based on dish location mode
-      const dishNavParams = {
+      navigation.navigate('Rankings', {
         searchType: 'dish',
         category: selectedCategory,
         district: dishLocMode === 'manual' && searchMode === 'אזורי' ? selectedLocation : null,
@@ -422,12 +408,10 @@ export default function SearchScreen({ navigation }) {
     }
   };
 
-  // Compute which loc modes are available based on permission
-  const availableLocModes = locationPermission === 'denied'
-    ? ALL_LOC_MODES.filter(m => m.id === 'manual')
-    : ALL_LOC_MODES;
-
-  const getLocModeLabel = (mode) => ALL_LOC_MODES.find(m => m.id === mode)?.label ?? mode;
+  // Compute available SEARCH_MODES based on permission
+  const availableModes = locationPermission === 'denied'
+    ? SEARCH_MODES.filter(m => m.id !== 'nearMe' && m.id !== 'custom')
+    : SEARCH_MODES;
 
   const isAnyDropdownOpen =
     isCategoryDropdownOpen ||
@@ -565,62 +549,8 @@ export default function SearchScreen({ navigation }) {
               {/* Location Mode Dropdown */}
               <View style={[styles.inputRow, isMobile && { width: '100%' }, { marginTop: SPACING.lg, zIndex: isDishLocModeOpen ? 10 : 2 }]}>
                 <View style={styles.inputGroup}>
-                  <TouchableOpacity
-                    style={[styles.modeSelectorBox, isDishLocModeOpen && styles.focusedBox]}
-                    onPress={() => {
-                      const next = !isDishLocModeOpen;
-                      closeAllDropdowns();
-                      setIsDishLocModeOpen(next);
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.modeText}>{getLocModeLabel(dishLocMode)}</Text>
-                    <Text style={styles.dropdownArrow}>▼</Text>
-                  </TouchableOpacity>
-
-                  {isDishLocModeOpen && (
-                    <View style={styles.dropdown}>
-                      {availableLocModes.map((m) => (
-                        <TouchableOpacity
-                          key={m.id}
-                          style={styles.dropdownItem}
-                          onPress={() => {
-                            setDishLocMode(m.id);
-                            setIsDishLocModeOpen(false);
-                          }}
-                        >
-                          <Text style={[styles.dropdownText, dishLocMode === m.id && { color: COLORS.accent, fontFamily: FONTS.bold }]}>
-                            {m.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                </View>
-
-                {/* Custom radius input */}
-                {dishLocMode === 'custom' && (
-                  <View style={[styles.searchBox, { marginTop: SPACING.sm }]}>
-                    <Text style={styles.searchIcon}>📏</Text>
-                    <TextInput
-                      style={styles.searchInput}
-                      placeholder="הזן מרחק בק״מ"
-                      placeholderTextColor={COLORS.textSecondary}
-                      value={dishCustomRadius}
-                      onChangeText={setDishCustomRadius}
-                      keyboardType="numeric"
-                      textAlign="right"
-                    />
-                  </View>
-                )}
-
-                {locationPermission === 'denied' && (
-                  <Text style={styles.locationDeniedNote}>📵 גישה למיקום נדחתה — קרוב אליי אינו זמין.</Text>
-                )}
-              </View>
-
-              {/* Row 2: Search Mode & Location — only shown in manual mode */}
-              {dishLocMode === 'manual' && (<View style={[
+              {/* Row 2: Search Mode & Location */}
+              <View style={[
                 styles.inputRow, 
                 isMobile ? styles.row2Mobile : styles.row2, 
                 isMobile && { width: '100%' },
@@ -641,14 +571,14 @@ export default function SearchScreen({ navigation }) {
                       setFocusedInput(nextState ? 'mode' : null);
                     }}
                   >
-                    <Text style={styles.modeText}>{searchMode}</Text>
+                    <Text style={styles.modeText}>{SEARCH_MODES.find(m => m.id === searchMode)?.label || searchMode}</Text>
                     <Text style={styles.dropdownArrow}>▼</Text>
                   </TouchableOpacity>
 
                   {/* Mode Dropdown */}
                   {isModeDropdownOpen && (
                     <View style={styles.dropdown}>
-                      {SEARCH_MODES.map((mode) => (
+                      {availableModes.map((mode) => (
                         <TouchableOpacity
                           key={mode.id}
                           style={styles.dropdownItem}
@@ -668,54 +598,71 @@ export default function SearchScreen({ navigation }) {
                   styles.inputGroup, 
                   isMobile ? { width: '100%', zIndex: 2 } : { flex: 0.7, zIndex: 2 }
                 ]}>
-                  <View style={[
-                    styles.searchBox, 
-                    searchMode === 'ארצי' && styles.disabledBox,
-                    focusedInput === 'location' && styles.focusedBox
-                  ]}>
-                    <Text style={styles.searchIcon}>📍</Text>
-                    <TextInput
-                      style={styles.searchInput}
-                      placeholder={getDishLocationPlaceholder()}
-                      placeholderTextColor={COLORS.textSecondary}
-                      value={searchMode === 'ארצי' ? 'כל הארץ' : locationQuery}
-                      onChangeText={handleLocationSearch}
-                      onFocus={() => {
-                        setFocusedInput('location');
-                        handleLocationFocus();
-                      }}
-                      onBlur={() => {
-                        setFocusedInput(null);
-                        setTimeout(() => setIsLocationDropdownOpen(false), 200);
-                      }}
-                      textAlign="right"
-                      editable={searchMode !== 'ארצי'}
-                    />
-                  </View>
-
-                  {/* Location Dropdown */}
-                  {isLocationDropdownOpen && (
-                    <View style={styles.dropdown}>
-                      {filteredLocations.length > 0 ? (
-                        filteredLocations.map((item) => (
-                          <TouchableOpacity
-                            key={item.id}
-                            style={styles.dropdownItem}
-                            onPress={() => selectLocation(item)}
-                            keyboardShouldPersistTaps="handled"
-                          >
-                            <Text style={styles.dropdownText}>{item.name}</Text>
-                          </TouchableOpacity>
-                        ))
-                      ) : locationQuery.length > 0 ? (
-                        <View style={styles.dropdownItem}>
-                          <Text style={styles.errorText}>נראה שעוד לא הגענו למיקום הזה :(</Text>
-                        </View>
-                      ) : null}
+                  {searchMode === 'custom' ? (
+                    <View style={[styles.searchBox, { marginTop: isMobile ? SPACING.sm : 0 }]}>
+                      <Text style={styles.searchIcon}>📏</Text>
+                      <TextInput
+                        style={styles.searchInput}
+                        placeholder="הזן מרחק בק״מ"
+                        placeholderTextColor={COLORS.textSecondary}
+                        value={dishCustomRadius}
+                        onChangeText={setDishCustomRadius}
+                        keyboardType="numeric"
+                        textAlign="right"
+                      />
                     </View>
+                  ) : (
+                    <>
+                      <View style={[
+                        styles.searchBox, 
+                        (searchMode === 'ארצי' || searchMode === 'nearMe') && styles.disabledBox,
+                        focusedInput === 'location' && styles.focusedBox
+                      ]}>
+                        <Text style={styles.searchIcon}>📍</Text>
+                        <TextInput
+                          style={styles.searchInput}
+                          placeholder={getDishLocationPlaceholder()}
+                          placeholderTextColor={COLORS.textSecondary}
+                          value={(searchMode === 'ארצי' || searchMode === 'nearMe') ? '' : locationQuery}
+                          onChangeText={handleLocationSearch}
+                          onFocus={() => {
+                            setFocusedInput('location');
+                            handleLocationFocus();
+                          }}
+                          onBlur={() => {
+                            setFocusedInput(null);
+                            setTimeout(() => setIsLocationDropdownOpen(false), 200);
+                          }}
+                          textAlign="right"
+                          editable={searchMode !== 'ארצי' && searchMode !== 'nearMe'}
+                        />
+                      </View>
+
+                      {/* Location Dropdown */}
+                      {isLocationDropdownOpen && (
+                        <View style={styles.dropdown}>
+                          {filteredLocations.length > 0 ? (
+                            filteredLocations.map((item) => (
+                              <TouchableOpacity
+                                key={item.id}
+                                style={styles.dropdownItem}
+                                onPress={() => selectLocation(item)}
+                                keyboardShouldPersistTaps="handled"
+                              >
+                                <Text style={styles.dropdownText}>{item.name}</Text>
+                              </TouchableOpacity>
+                            ))
+                          ) : locationQuery.length > 0 ? (
+                            <View style={styles.dropdownItem}>
+                              <Text style={styles.errorText}>נראה שעוד לא הגענו למיקום הזה :(</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      )}
+                    </>
                   )}
                 </View>
-              </View>)}
+              </View>
             </View>
           ) : (
             /* ────────────────────────────────────────────────────────────────
@@ -741,65 +688,8 @@ export default function SearchScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* Location Mode Dropdown for Restaurant */}
-              <View style={[styles.inputRow, isMobile && { width: '100%' }, { marginTop: SPACING.lg, zIndex: isRestLocModeOpen ? 10 : 2 }]}>
-                <View style={styles.inputGroup}>
-                  <TouchableOpacity
-                    style={[styles.modeSelectorBox, isRestLocModeOpen && styles.focusedBox]}
-                    onPress={() => {
-                      const next = !isRestLocModeOpen;
-                      closeAllDropdowns();
-                      setIsRestLocModeOpen(next);
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.modeText}>{getLocModeLabel(restLocMode)}</Text>
-                    <Text style={styles.dropdownArrow}>▼</Text>
-                  </TouchableOpacity>
-
-                  {isRestLocModeOpen && (
-                    <View style={styles.dropdown}>
-                      {availableLocModes.map((m) => (
-                        <TouchableOpacity
-                          key={m.id}
-                          style={styles.dropdownItem}
-                          onPress={() => {
-                            setRestLocMode(m.id);
-                            setIsRestLocModeOpen(false);
-                          }}
-                        >
-                          <Text style={[styles.dropdownText, restLocMode === m.id && { color: COLORS.accent, fontFamily: FONTS.bold }]}>
-                            {m.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                </View>
-
-                {/* Custom radius input */}
-                {restLocMode === 'custom' && (
-                  <View style={[styles.searchBox, { marginTop: SPACING.sm }]}>
-                    <Text style={styles.searchIcon}>📏</Text>
-                    <TextInput
-                      style={styles.searchInput}
-                      placeholder="הזן מרחק בק״מ"
-                      placeholderTextColor={COLORS.textSecondary}
-                      value={restCustomRadius}
-                      onChangeText={setRestCustomRadius}
-                      keyboardType="numeric"
-                      textAlign="right"
-                    />
-                  </View>
-                )}
-
-                {locationPermission === 'denied' && (
-                  <Text style={styles.locationDeniedNote}>📵 גישה למיקום נדחתה — קרוב אליי אינו זמין.</Text>
-                )}
-              </View>
-
-              {/* Row 2: Mode & Location — only shown in manual mode */}
-              {restLocMode === 'manual' && (<View style={[
+              {/* Row 2: Search Mode & Location */}
+              <View style={[
                 styles.inputRow, 
                 isMobile ? styles.row2Mobile : styles.row2, 
                 isMobile && { width: '100%' },
@@ -820,14 +710,14 @@ export default function SearchScreen({ navigation }) {
                       setFocusedInput(nextState ? 'restaurantMode' : null);
                     }}
                   >
-                    <Text style={styles.modeText}>{restaurantSearchMode}</Text>
+                    <Text style={styles.modeText}>{SEARCH_MODES.find(m => m.id === restaurantSearchMode)?.label || restaurantSearchMode}</Text>
                     <Text style={styles.dropdownArrow}>▼</Text>
                   </TouchableOpacity>
 
                   {/* Mode Dropdown */}
                   {isRestaurantModeDropdownOpen && (
                     <View style={styles.dropdown}>
-                      {SEARCH_MODES.map((mode) => (
+                      {availableModes.map((mode) => (
                         <TouchableOpacity
                           key={mode.id}
                           style={styles.dropdownItem}
@@ -847,54 +737,71 @@ export default function SearchScreen({ navigation }) {
                   styles.inputGroup, 
                   isMobile ? { width: '100%', zIndex: 2 } : { flex: 0.7, zIndex: 2 }
                 ]}>
-                  <View style={[
-                    styles.searchBox, 
-                    restaurantSearchMode === 'ארצי' && styles.disabledBox,
-                    focusedInput === 'restaurantLocation' && styles.focusedBox
-                  ]}>
-                    <Text style={styles.searchIcon}>📍</Text>
-                    <TextInput
-                      style={styles.searchInput}
-                      placeholder={getRestaurantLocationPlaceholder()}
-                      placeholderTextColor={COLORS.textSecondary}
-                      value={restaurantSearchMode === 'ארצי' ? 'כל הארץ' : restaurantLocationQuery}
-                      onChangeText={handleRestaurantLocationSearch}
-                      onFocus={() => {
-                        setFocusedInput('restaurantLocation');
-                        handleRestaurantLocationFocus();
-                      }}
-                      onBlur={() => {
-                        setFocusedInput(null);
-                        setTimeout(() => setIsRestaurantLocationDropdownOpen(false), 200);
-                      }}
-                      textAlign="right"
-                      editable={restaurantSearchMode !== 'ארצי'}
-                    />
-                  </View>
-
-                  {/* Location Dropdown */}
-                  {isRestaurantLocationDropdownOpen && (
-                    <View style={styles.dropdown}>
-                      {filteredRestaurantLocations.length > 0 ? (
-                        filteredRestaurantLocations.map((item) => (
-                          <TouchableOpacity
-                            key={item.id}
-                            style={styles.dropdownItem}
-                            onPress={() => selectRestaurantLocation(item)}
-                            keyboardShouldPersistTaps="handled"
-                          >
-                            <Text style={styles.dropdownText}>{item.name}</Text>
-                          </TouchableOpacity>
-                        ))
-                      ) : restaurantLocationQuery.length > 0 ? (
-                        <View style={styles.dropdownItem}>
-                          <Text style={styles.errorText}>נראה שעוד לא הגענו למיקום הזה :(</Text>
-                        </View>
-                      ) : null}
+                  {restaurantSearchMode === 'custom' ? (
+                    <View style={[styles.searchBox, { marginTop: isMobile ? SPACING.sm : 0 }]}>
+                      <Text style={styles.searchIcon}>📏</Text>
+                      <TextInput
+                        style={styles.searchInput}
+                        placeholder="הזן מרחק בק״מ"
+                        placeholderTextColor={COLORS.textSecondary}
+                        value={restCustomRadius}
+                        onChangeText={setRestCustomRadius}
+                        keyboardType="numeric"
+                        textAlign="right"
+                      />
                     </View>
+                  ) : (
+                    <>
+                      <View style={[
+                        styles.searchBox, 
+                        (restaurantSearchMode === 'ארצי' || restaurantSearchMode === 'nearMe') && styles.disabledBox,
+                        focusedInput === 'restaurantLocation' && styles.focusedBox
+                      ]}>
+                        <Text style={styles.searchIcon}>📍</Text>
+                        <TextInput
+                          style={styles.searchInput}
+                          placeholder={getRestaurantLocationPlaceholder()}
+                          placeholderTextColor={COLORS.textSecondary}
+                          value={(restaurantSearchMode === 'ארצי' || restaurantSearchMode === 'nearMe') ? '' : restaurantLocationQuery}
+                          onChangeText={handleRestaurantLocationSearch}
+                          onFocus={() => {
+                            setFocusedInput('restaurantLocation');
+                            handleRestaurantLocationFocus();
+                          }}
+                          onBlur={() => {
+                            setFocusedInput(null);
+                            setTimeout(() => setIsRestaurantLocationDropdownOpen(false), 200);
+                          }}
+                          textAlign="right"
+                          editable={restaurantSearchMode !== 'ארצי' && restaurantSearchMode !== 'nearMe'}
+                        />
+                      </View>
+
+                      {/* Location Dropdown */}
+                      {isRestaurantLocationDropdownOpen && (
+                        <View style={styles.dropdown}>
+                          {filteredRestaurantLocations.length > 0 ? (
+                            filteredRestaurantLocations.map((item) => (
+                              <TouchableOpacity
+                                key={item.id}
+                                style={styles.dropdownItem}
+                                onPress={() => selectRestaurantLocation(item)}
+                                keyboardShouldPersistTaps="handled"
+                              >
+                                <Text style={styles.dropdownText}>{item.name}</Text>
+                              </TouchableOpacity>
+                            ))
+                          ) : restaurantLocationQuery.length > 0 ? (
+                            <View style={styles.dropdownItem}>
+                              <Text style={styles.errorText}>נראה שעוד לא הגענו למיקום הזה :(</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      )}
+                    </>
                   )}
                 </View>
-              </View>)}
+              </View>
               {/* Row 3: Category Multi-select Selection Chips */}
               <View style={[styles.inputRow, isMobile && { width: '100%' }, { zIndex: 1, marginTop: SPACING.lg }]}>
                 <View style={styles.chipsContainer}>
