@@ -18,6 +18,8 @@ import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { supabase } from '../database/supabaseClient';
+import { getNearbyDishes } from '../database/SearchQueries';
+import { haversineDistance } from '../database/SearchQueries';
 import RatingFormModal from '../components/RatingFormModal';
 import DishReviewsModal from '../components/DishReviewsModal';
 import DishCard from '../components/DishCard';
@@ -25,7 +27,18 @@ import DishCard from '../components/DishCard';
 export default function RankingsScreen({ navigation, route }) {
   const { user } = useAuth();
   const { showAlert, showConfirm } = useAlert();
-  const { searchType = 'dish', category, district, city, restaurants: initialRestaurants } = route.params || {};
+  const {
+    searchType = 'dish',
+    category,
+    district,
+    city,
+    restaurants: initialRestaurants,
+    locMode,
+    userLat,
+    userLon,
+    radiusKm,
+    userLocation,
+  } = route.params || {};
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -70,12 +83,24 @@ export default function RankingsScreen({ navigation, route }) {
           });
         }
       } else {
-        const result = await getRankedDishes({
-          categoryId: category.id,
-          districtId: district?.id,
-          cityId: city?.id,
-        });
-        data = result.dishes;
+        // Check if this is a location-based dish search (nearMe / custom)
+        const isLocationMode = locMode === 'nearMe' || locMode === 'custom';
+        if (isLocationMode && userLat != null && userLon != null) {
+          const result = await getNearbyDishes({
+            userLat,
+            userLon,
+            radiusKm: radiusKm || 5,
+            categoryId: category.id,
+          });
+          data = result.dishes;
+        } else {
+          const result = await getRankedDishes({
+            categoryId: category.id,
+            districtId: district?.id,
+            cityId: city?.id,
+          });
+          data = result.dishes;
+        }
       }
       setDishes(data);
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
@@ -246,6 +271,7 @@ export default function RankingsScreen({ navigation, route }) {
       onToggleSave={() => handleToggleSave(item)}
       titleMode="default"
       showRank={true}
+      userLocation={userLocation}
     />
   );
 
@@ -289,7 +315,14 @@ export default function RankingsScreen({ navigation, route }) {
                   <Text>{item.city_name}</Text>
                 </Text>
                 <Text style={[styles.cardAddress, { fontSize: 14, color: '#A0A0A5', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
-                  {item.address || 'כתובת לא הוזנה'}
+                  {(() => {
+                    if (userLocation && item.latitude != null && item.longitude != null) {
+                      const d = haversineDistance(userLocation.latitude, userLocation.longitude, item.latitude, item.longitude);
+                      if (d != null) return `במרחק ${d.toFixed(1)} ק"מ ממך‏`;
+                    }
+                    if (item.distance_km != null) return `במרחק ${item.distance_km.toFixed(1)} ק"מ ממך‏`;
+                    return item.address || 'כתובת לא הוזנה';
+                  })()}
                 </Text>
                 <Text style={[styles.cardReviews, { fontSize: 12, color: '#6E6E73', textAlign: 'right', marginTop: 4 }]} numberOfLines={1}>
                   דורג ע"י {item.review_count || 0} אנשים
@@ -348,7 +381,14 @@ export default function RankingsScreen({ navigation, route }) {
                 <Text>{item.city_name}</Text>
               </Text>
               <Text style={[styles.cardAddress, { fontSize: 16 }]} numberOfLines={1}>
-                {item.address || 'כתובת לא הוזנה'}
+                {(() => {
+                  if (userLocation && item.latitude != null && item.longitude != null) {
+                    const d = haversineDistance(userLocation.latitude, userLocation.longitude, item.latitude, item.longitude);
+                    if (d != null) return `במרחק ${d.toFixed(1)} ק"מ ממך‏`;
+                  }
+                  if (item.distance_km != null) return `במרחק ${item.distance_km.toFixed(1)} ק"מ ממך‏`;
+                  return item.address || 'כתובת לא הוזנה';
+                })()}
               </Text>
               <Text style={[styles.cardReviews, { fontSize: 14 }]} numberOfLines={1}>
                 דורג ע"י {item.review_count || 0} אנשים

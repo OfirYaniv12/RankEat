@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SPACING } from '../theme';
+import { haversineDistance } from '../database/SearchQueries';
 
 export default function DishCard({
   item,
@@ -38,6 +39,7 @@ export default function DishCard({
   onToggleSave,
   titleMode = 'default',
   showRank = true,
+  userLocation = null,
 }) {
   const localFade = useRef(new Animated.Value(1)).current;
   const anim = fadeAnim || localFade;
@@ -67,6 +69,24 @@ export default function DishCard({
         );
 
   const scoreText = `★ ${(item.weighted_score || 0).toFixed(1)}`;
+
+  // Distance subtitle: show "במרחק X ק"מ ממך" when location is available, else address
+  const subtitleText = (() => {
+    if (userLocation) {
+      // Prefer RPC-provided distance_km; fall back to client-side haversine
+      if (item.distance_km != null) {
+        return `במרחק ${item.distance_km.toFixed(1)} ק"מ ממך‏`;
+      }
+      if (item.latitude != null && item.longitude != null) {
+        const d = haversineDistance(
+          userLocation.latitude, userLocation.longitude,
+          item.latitude, item.longitude
+        );
+        if (d != null) return `במרחק ${d.toFixed(1)} ק"מ ממך‏`;
+      }
+    }
+    return item.address || 'כתובת לא הוזנה';
+  })();
 
   // ─── MOBILE layout ─────────────────────────────────────────────────────────
   if (isMobile) {
@@ -109,7 +129,7 @@ export default function DishCard({
             <View style={styles.mobileTextCol}>
               <Text style={styles.mobileTitle} numberOfLines={2}>{titleLine}</Text>
               <Text style={styles.mobileAddress} numberOfLines={1}>
-                {item.address || 'כתובת לא הוזנה'}
+                {subtitleText}
               </Text>
               <Text style={styles.mobileReviews} numberOfLines={1}>
                 דורג ע"י {item.review_count || 0} אנשים
@@ -199,7 +219,7 @@ export default function DishCard({
             <View style={styles.desktopTextCol}>
               <Text style={styles.desktopTitle} numberOfLines={2}>{titleLine}</Text>
               <Text style={styles.desktopAddress} numberOfLines={1}>
-                {item.address || 'כתובת לא הוזנה'}
+                {subtitleText}
               </Text>
               <Text style={styles.desktopReviews} numberOfLines={1}>
                 דורג ע"י {item.review_count || 0} אנשים
