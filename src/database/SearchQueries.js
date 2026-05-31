@@ -356,11 +356,7 @@ export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }
         distance_km: distanceMap[biz.id] ?? null,
       };
     })
-    .sort((a, b) => {
-      // Sort by distance first, then score
-      if (a.distance_km != null && b.distance_km != null) return a.distance_km - b.distance_km;
-      return b.weighted_score - a.weighted_score;
-    });
+    .sort((a, b) => b.weighted_score - a.weighted_score);
 
   return { dishes, globalAvg: C };
 };
@@ -468,11 +464,8 @@ export const getNearbyRestaurants = async ({ userLat, userLon, radiusKm, nameQue
     results = results.filter(b => b.name.toLowerCase().includes(normQ));
   }
 
-  // Sort by distance first, then smart_score
-  results.sort((a, b) => {
-    if (a.distance_km != null && b.distance_km != null) return a.distance_km - b.distance_km;
-    return b.smart_score - a.smart_score;
-  });
+  // Sort strictly by score (ignore distance for sorting)
+  results.sort((a, b) => b.smart_score - a.smart_score);
 
   return results;
 };
