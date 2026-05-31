@@ -338,36 +338,13 @@ export default function SearchScreen({ navigation }) {
         return;
       }
 
-      const dishNavParams = {
-        searchType: 'dish',
-        category: selectedCategory,
-        district: searchMode === 'אזורי' ? selectedLocation : null,
-        city:     searchMode === 'עירוני' ? selectedLocation : null,
-        searchMode: searchMode === 'nearMe' || searchMode === 'custom' ? 'ארצי' : searchMode,
-      };
-
-      if (searchMode === 'nearMe' && userCoords) {
-        dishNavParams.userLat    = userCoords.latitude;
-        dishNavParams.userLon    = userCoords.longitude;
-        dishNavParams.radiusKm   = 5;
-        dishNavParams.locMode    = 'nearMe';
-      } else if (searchMode === 'custom' && userCoords) {
-        const r = parseFloat(dishCustomRadius);
-        if (!isNaN(r) && r > 0) {
-          dishNavParams.userLat  = userCoords.latitude;
-          dishNavParams.userLon  = userCoords.longitude;
-          dishNavParams.radiusKm = r;
-          dishNavParams.locMode  = 'custom';
-        }
-      }
-
-      // Location-based modes: call RPC
+      // ── Location-based modes: navigate to RankingsScreen which calls RPC ──
       if (searchMode === 'nearMe' || searchMode === 'custom') {
-        const radiusKm = searchMode === 'nearMe' ? 5 : (parseFloat(dishCustomRadius) || 5);
         if (!userCoords) {
           showAlert({ title: 'שגיאה', message: 'לא ניתן לקבל מיקום כרגע', type: 'error', primaryButtonText: 'הבנתי' });
           return;
         }
+        const radiusKm = searchMode === 'nearMe' ? 5 : Math.max(1, parseFloat(dishCustomRadius) || 5);
         navigation.navigate('Rankings', {
           searchType: 'dish',
           category: selectedCategory,
@@ -377,61 +354,40 @@ export default function SearchScreen({ navigation }) {
           locMode: searchMode,
           userLat: userCoords.latitude,
           userLon: userCoords.longitude,
-          radiusKm,
-          userLocation: userCoords,
+          radiusKm: Number(radiusKm),
+          userLocation: { latitude: userCoords.latitude, longitude: userCoords.longitude },
         });
         return;
       }
 
-      navigation.navigate('Rankings', dishNavParams);
+      // ── Standard modes (city / area / national) ──
+      navigation.navigate('Rankings', {
+        searchType: 'dish',
+        category: selectedCategory,
+        district: searchMode === 'אזורי' ? selectedLocation : null,
+        city:     searchMode === 'עירוני' ? selectedLocation : null,
+        searchMode: searchMode,
+        locMode: null,
+        // Pass userLocation so cards can show distance even in standard searches
+        userLocation: userCoords ? { latitude: userCoords.latitude, longitude: userCoords.longitude } : null,
+      });
+
     } else {
-      // Restaurant Search Validation & Submit
+      // ── Restaurant Search ──
       setLoading(true);
       try {
-        const sortedRestaurants = await getRankedRestaurants({
-          nameQuery: restaurantNameQuery,
-          searchMode: (restaurantSearchMode === 'nearMe' || restaurantSearchMode === 'custom') ? 'ארצי' : restaurantSearchMode,
-          selectedLocation: (restaurantSearchMode === 'עירוני' || restaurantSearchMode === 'אזורי') ? selectedRestaurantLocation : null,
-          selectedCategoryIds,
-          userCityId: user?.city_id,
-          userDistrictId: user?.district_id,
-        });
 
-        const restaurantNavParams = {
-          searchType: 'restaurant',
-          restaurants: sortedRestaurants,
-          nameQuery: restaurantNameQuery,
-          searchMode: (restaurantSearchMode === 'nearMe' || restaurantSearchMode === 'custom') ? 'ארצי' : restaurantSearchMode,
-          selectedLocation: (restaurantSearchMode === 'עירוני' || restaurantSearchMode === 'אזורי') ? selectedRestaurantLocation : null,
-          selectedCategoryIds,
-        };
-
-        if (restaurantSearchMode === 'nearMe' && userCoords) {
-          restaurantNavParams.userLat  = userCoords.latitude;
-          restaurantNavParams.userLon  = userCoords.longitude;
-          restaurantNavParams.radiusKm = 5;
-          restaurantNavParams.locMode  = 'nearMe';
-        } else if (restaurantSearchMode === 'custom' && userCoords) {
-          const r = parseFloat(restCustomRadius);
-          if (!isNaN(r) && r > 0) {
-            restaurantNavParams.userLat  = userCoords.latitude;
-            restaurantNavParams.userLon  = userCoords.longitude;
-            restaurantNavParams.radiusKm = r;
-            restaurantNavParams.locMode  = 'custom';
-          }
-        }
-
-        // Location-based modes: call RPC
+        // ── Location-based modes: call RPC directly here ──
         if (restaurantSearchMode === 'nearMe' || restaurantSearchMode === 'custom') {
-          const radiusKm = restaurantSearchMode === 'nearMe' ? 5 : (parseFloat(restCustomRadius) || 5);
           if (!userCoords) {
             showAlert({ title: 'שגיאה', message: 'לא ניתן לקבל מיקום כרגע', type: 'error', primaryButtonText: 'הבנתי' });
             return;
           }
+          const radiusKm = restaurantSearchMode === 'nearMe' ? 5 : Math.max(1, parseFloat(restCustomRadius) || 5);
           const nearbyRests = await getNearbyRestaurants({
             userLat: userCoords.latitude,
             userLon: userCoords.longitude,
-            radiusKm,
+            radiusKm: Number(radiusKm),
             nameQuery: restaurantNameQuery,
             selectedCategoryIds,
           });
@@ -441,13 +397,34 @@ export default function SearchScreen({ navigation }) {
             nameQuery: restaurantNameQuery,
             searchMode: 'ארצי',
             locMode: restaurantSearchMode,
-            userLocation: userCoords,
+            userLocation: { latitude: userCoords.latitude, longitude: userCoords.longitude },
             selectedCategoryIds,
           });
           return;
         }
 
-        navigation.navigate('Rankings', restaurantNavParams);
+        // ── Standard modes (city / area / national) ──
+        const sortedRestaurants = await getRankedRestaurants({
+          nameQuery: restaurantNameQuery,
+          searchMode: restaurantSearchMode,
+          selectedLocation: (restaurantSearchMode === 'עירוני' || restaurantSearchMode === 'אזורי') ? selectedRestaurantLocation : null,
+          selectedCategoryIds,
+          userCityId: user?.city_id,
+          userDistrictId: user?.district_id,
+        });
+
+        navigation.navigate('Rankings', {
+          searchType: 'restaurant',
+          restaurants: sortedRestaurants,
+          nameQuery: restaurantNameQuery,
+          searchMode: restaurantSearchMode,
+          locMode: null,
+          selectedLocation: (restaurantSearchMode === 'עירוני' || restaurantSearchMode === 'אזורי') ? selectedRestaurantLocation : null,
+          selectedCategoryIds,
+          // Pass userLocation so cards can show distance even in standard searches
+          userLocation: userCoords ? { latitude: userCoords.latitude, longitude: userCoords.longitude } : null,
+        });
+
       } catch (e) {
         console.error('Restaurant search submit error:', e);
         showAlert({ title: 'שגיאה', message: 'שגיאה בביצוע החיפוש', type: 'error', primaryButtonText: 'הבנתי' });

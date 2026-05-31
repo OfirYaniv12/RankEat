@@ -291,9 +291,9 @@ export const getRankedRestaurants = async ({ nameQuery, searchMode, selectedLoca
  */
 export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }) => {
   const { data: nearby, error } = await supabase.rpc('get_nearby_businesses', {
-    user_lat: userLat,
-    user_lng: userLon,
-    radius_km: radiusKm,
+    user_lat: Number(userLat),
+    user_lng: Number(userLon),
+    radius_km: Number(radiusKm) || 5,
   });
 
   if (error) throw new Error(`getNearbyDishes/rpc: ${error.message}`);
@@ -301,9 +301,13 @@ export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }
 
   // Build a map of business_id -> distance_km for later enrichment
   const distanceMap = {};
-  nearby.forEach(row => { distanceMap[row.business_id] = row.distance_km; });
+  nearby.forEach(row => {
+    // RPC may return either 'business_id' or 'id' — handle both
+    const bizId = row.business_id ?? row.id;
+    if (bizId) distanceMap[bizId] = row.distance_km ?? null;
+  });
 
-  const businessIds = nearby.map(r => r.business_id);
+  const businessIds = nearby.map(r => r.business_id ?? r.id).filter(Boolean);
 
   const { data: rawDishes, error: dishError } = await supabase
     .from('dishes')
@@ -368,18 +372,21 @@ export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }
  */
 export const getNearbyRestaurants = async ({ userLat, userLon, radiusKm, nameQuery, selectedCategoryIds }) => {
   const { data: nearby, error } = await supabase.rpc('get_nearby_businesses', {
-    user_lat: userLat,
-    user_lng: userLon,
-    radius_km: radiusKm,
+    user_lat: Number(userLat),
+    user_lng: Number(userLon),
+    radius_km: Number(radiusKm) || 5,
   });
 
   if (error) throw new Error(`getNearbyRestaurants/rpc: ${error.message}`);
   if (!nearby || nearby.length === 0) return [];
 
   const distanceMap = {};
-  nearby.forEach(row => { distanceMap[row.business_id] = row.distance_km; });
+  nearby.forEach(row => {
+    const bizId = row.business_id ?? row.id;
+    if (bizId) distanceMap[bizId] = row.distance_km ?? null;
+  });
 
-  const businessIds = nearby.map(r => r.business_id);
+  const businessIds = nearby.map(r => r.business_id ?? r.id).filter(Boolean);
 
   const { data: businesses, error: bizError } = await supabase
     .from('businesses')
