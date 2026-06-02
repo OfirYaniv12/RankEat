@@ -546,22 +546,24 @@ export default function SearchScreen({ navigation }) {
                   {/* Category Dropdown */}
                   {isCategoryDropdownOpen && (
                     <View style={styles.dropdown}>
-                      {filteredCategories.length > 0 ? (
-                        filteredCategories.map((item) => (
-                          <TouchableOpacity
-                            key={item.id}
-                            style={styles.dropdownItem}
-                            onPress={() => selectCategory(item)}
-                            keyboardShouldPersistTaps="handled"
-                          >
-                            <Text style={styles.dropdownText}>{item.name}</Text>
-                          </TouchableOpacity>
-                        ))
-                      ) : categoryQuery.length > 0 ? (
-                        <View style={styles.dropdownItem}>
-                          <Text style={styles.errorText}>נראה שאנחנו לא מכירים את זה עדיין :(</Text>
-                        </View>
-                      ) : null}
+                      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                        {filteredCategories.length > 0 ? (
+                          filteredCategories.map((item) => (
+                            <TouchableOpacity
+                              key={item.id}
+                              style={styles.dropdownItem}
+                              onPress={() => selectCategory(item)}
+                              keyboardShouldPersistTaps="handled"
+                            >
+                              <Text style={styles.dropdownText}>{item.name}</Text>
+                            </TouchableOpacity>
+                          ))
+                        ) : categoryQuery.length > 0 ? (
+                          <View style={styles.dropdownItem}>
+                            <Text style={styles.errorText}>נראה שאנחנו לא מכירים את זה עדיין :(</Text>
+                          </View>
+                        ) : null}
+                      </ScrollView>
                     </View>
                   )}
                 </View>
@@ -596,17 +598,19 @@ export default function SearchScreen({ navigation }) {
                   {/* Mode Dropdown */}
                   {isModeDropdownOpen && (
                     <View style={styles.dropdown}>
-                      {availableModes.map((mode) => (
-                        <TouchableOpacity
-                          key={mode.id}
-                          style={styles.dropdownItem}
-                          onPress={() => selectMode(mode.id)}
-                        >
-                          <Text style={[styles.dropdownText, searchMode === mode.id && { color: COLORS.accent, fontFamily: FONTS.bold }]}>
-                            {mode.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                        {availableModes.map((mode) => (
+                          <TouchableOpacity
+                            key={mode.id}
+                            style={styles.dropdownItem}
+                            onPress={() => selectMode(mode.id)}
+                          >
+                            <Text style={[styles.dropdownText, searchMode === mode.id && { color: COLORS.accent, fontFamily: FONTS.bold }]}>
+                              {mode.label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
                     </View>
                   )}
                 </View>
@@ -659,22 +663,24 @@ export default function SearchScreen({ navigation }) {
                       {/* Location Dropdown */}
                       {isLocationDropdownOpen && (
                         <View style={styles.dropdown}>
-                          {filteredLocations.length > 0 ? (
-                            filteredLocations.map((item) => (
-                              <TouchableOpacity
-                                key={item.id}
-                                style={styles.dropdownItem}
-                                onPress={() => selectLocation(item)}
-                                keyboardShouldPersistTaps="handled"
-                              >
-                                <Text style={styles.dropdownText}>{item.name}</Text>
-                              </TouchableOpacity>
-                            ))
-                          ) : locationQuery.length > 0 ? (
-                            <View style={styles.dropdownItem}>
-                              <Text style={styles.errorText}>נראה שעוד לא הגענו למיקום הזה :(</Text>
-                            </View>
-                          ) : null}
+                          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                            {filteredLocations.length > 0 ? (
+                              filteredLocations.map((item) => (
+                                <TouchableOpacity
+                                  key={item.id}
+                                  style={styles.dropdownItem}
+                                  onPress={() => selectLocation(item)}
+                                  keyboardShouldPersistTaps="handled"
+                                >
+                                  <Text style={styles.dropdownText}>{item.name}</Text>
+                                </TouchableOpacity>
+                              ))
+                            ) : locationQuery.length > 0 ? (
+                              <View style={styles.dropdownItem}>
+                                <Text style={styles.errorText}>נראה שעוד לא הגענו למיקום הזה :(</Text>
+                              </View>
+                            ) : null}
+                          </ScrollView>
                         </View>
                       )}
                     </>
@@ -735,17 +741,19 @@ export default function SearchScreen({ navigation }) {
                   {/* Mode Dropdown */}
                   {isRestaurantModeDropdownOpen && (
                     <View style={styles.dropdown}>
-                      {availableModes.map((mode) => (
-                        <TouchableOpacity
-                          key={mode.id}
-                          style={styles.dropdownItem}
-                          onPress={() => selectRestaurantMode(mode.id)}
-                        >
-                          <Text style={[styles.dropdownText, restaurantSearchMode === mode.id && { color: COLORS.accent, fontFamily: FONTS.bold }]}>
-                            {mode.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                        {availableModes.map((mode) => (
+                          <TouchableOpacity
+                            key={mode.id}
+                            style={styles.dropdownItem}
+                            onPress={() => selectRestaurantMode(mode.id)}
+                          >
+                            <Text style={[styles.dropdownText, restaurantSearchMode === mode.id && { color: COLORS.accent, fontFamily: FONTS.bold }]}>
+                              {mode.label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
                     </View>
                   )}
                 </View>
@@ -798,22 +806,24 @@ export default function SearchScreen({ navigation }) {
                       {/* Location Dropdown */}
                       {isRestaurantLocationDropdownOpen && (
                         <View style={styles.dropdown}>
-                          {filteredRestaurantLocations.length > 0 ? (
-                            filteredRestaurantLocations.map((item) => (
-                              <TouchableOpacity
-                                key={item.id}
-                                style={styles.dropdownItem}
-                                onPress={() => selectRestaurantLocation(item)}
-                                keyboardShouldPersistTaps="handled"
-                              >
-                                <Text style={styles.dropdownText}>{item.name}</Text>
-                              </TouchableOpacity>
-                            ))
-                          ) : restaurantLocationQuery.length > 0 ? (
-                            <View style={styles.dropdownItem}>
-                              <Text style={styles.errorText}>נראה שעוד לא הגענו למיקום הזה :(</Text>
-                            </View>
-                          ) : null}
+                          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                            {filteredRestaurantLocations.length > 0 ? (
+                              filteredRestaurantLocations.map((item) => (
+                                <TouchableOpacity
+                                  key={item.id}
+                                  style={styles.dropdownItem}
+                                  onPress={() => selectRestaurantLocation(item)}
+                                  keyboardShouldPersistTaps="handled"
+                                >
+                                  <Text style={styles.dropdownText}>{item.name}</Text>
+                                </TouchableOpacity>
+                              ))
+                            ) : restaurantLocationQuery.length > 0 ? (
+                              <View style={styles.dropdownItem}>
+                                <Text style={styles.errorText}>נראה שעוד לא הגענו למיקום הזה :(</Text>
+                              </View>
+                            ) : null}
+                          </ScrollView>
                         </View>
                       )}
                     </>
@@ -1108,6 +1118,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     overflow: 'hidden',
     zIndex: 999,
+    maxHeight: 220,
   },
   dropdownItem: {
     paddingVertical: SPACING.md,

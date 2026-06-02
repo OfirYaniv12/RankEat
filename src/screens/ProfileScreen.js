@@ -405,16 +405,22 @@ export default function ProfileScreen() {
                 />
                 {showDistrictDropdown && (
                   <View style={styles.dropdown}>
-                    {allDistricts.filter(d => d.name.includes(districtQuery)).slice(0, 5).map(d => (
-                      <TouchableOpacity key={d.id} style={styles.dropdownItem} onPress={() => {
-                        setDistrictQuery(d.name);
-                        setSelectedDistrictId(d.id);
-                        setShowDistrictDropdown(false);
-                        fetchCities(d.id);
-                      }}>
-                        <Text style={styles.dropdownTxt}>{d.name}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    <ScrollView
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled
+                    >
+                      {allDistricts.filter(d => d.name.includes(districtQuery)).map(d => (
+                        <TouchableOpacity key={d.id} style={styles.dropdownItem} onPress={() => {
+                          setDistrictQuery(d.name);
+                          setSelectedDistrictId(d.id);
+                          setShowDistrictDropdown(false);
+                          fetchCities(d.id);
+                        }}>
+                          <Text style={styles.dropdownTxt}>{d.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
                 )}
               </View>
@@ -431,15 +437,21 @@ export default function ProfileScreen() {
                 />
                 {showCityDropdown && allCitiesForDistrict.length > 0 && (
                   <View style={styles.dropdown}>
-                    {allCitiesForDistrict.filter(c => c.name.includes(cityQuery)).slice(0, 5).map(c => (
-                      <TouchableOpacity key={c.id} style={styles.dropdownItem} onPress={() => {
-                        setCityQuery(c.name);
-                        setSelectedCityId(c.id);
-                        setShowCityDropdown(false);
-                      }}>
-                        <Text style={styles.dropdownTxt}>{c.name}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    <ScrollView
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled
+                    >
+                      {allCitiesForDistrict.filter(c => c.name.includes(cityQuery)).map(c => (
+                        <TouchableOpacity key={c.id} style={styles.dropdownItem} onPress={() => {
+                          setCityQuery(c.name);
+                          setSelectedCityId(c.id);
+                          setShowCityDropdown(false);
+                        }}>
+                          <Text style={styles.dropdownTxt}>{c.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
                 )}
               </View>
@@ -624,7 +636,7 @@ const styles = StyleSheet.create({
   modalHeading: { fontSize: 22, fontWeight: 'bold', color: '#FFF' },
   lbl: { fontSize: 14, color: '#64748B', marginBottom: 8, textAlign: 'right', width: '100%' },
   inp: { backgroundColor: '#0a0a0a', borderRadius: 12, padding: 15, color: '#FFF', fontSize: 16, marginBottom: 15, width: '100%', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  dropdown: { position: 'absolute', top: 52, left: 0, right: 0, backgroundColor: '#1e1e20', borderRadius: 12, zIndex: 100, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden' },
+  dropdown: { position: 'absolute', top: 52, left: 0, right: 0, backgroundColor: '#1e1e20', borderRadius: 12, zIndex: 100, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', maxHeight: 220 },
   dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
   dropdownTxt: { color: '#FFF', textAlign: 'right' },
   modalActions: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 10 },
