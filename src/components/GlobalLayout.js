@@ -281,7 +281,7 @@ export default function GlobalLayout({ children }) {
         <View style={styles.headerBrand}>
           <Text style={styles.headerBrandName}>RankEat</Text>
           <Image
-            source={require('../../assets/logo.png')}
+            source={require('../../assets/new logo.png')}
             style={styles.headerLogo}
             resizeMode="cover"
           />
