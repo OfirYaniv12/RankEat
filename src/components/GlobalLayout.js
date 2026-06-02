@@ -279,10 +279,10 @@ export default function GlobalLayout({ children }) {
 
         {/* Logo + Brand Name — top right */}
         <View style={styles.headerBrand}>
-          <Text style={styles.headerBrandName}>RankEat</Text>
+          <Text style={[styles.headerBrandName, !isMobile && { fontSize: 22 }]}>RankEat</Text>
           <Image
             source={require('../../assets/new logo.png')}
-            style={styles.headerLogo}
+            style={[styles.headerLogo, !isMobile && { width: 46, height: 46, borderRadius: 13 }]}
             resizeMode="cover"
           />
         </View>
