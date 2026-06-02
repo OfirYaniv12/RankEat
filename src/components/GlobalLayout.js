@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   useWindowDimensions,
@@ -274,6 +275,16 @@ export default function GlobalLayout({ children }) {
               </TouchableOpacity>
             </>
           )}
+        </View>
+
+        {/* Logo + Brand Name — top right */}
+        <View style={styles.headerBrand}>
+          <Text style={styles.headerBrandName}>RankEat</Text>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.headerLogo}
+            resizeMode="cover"
+          />
         </View>
       </View>
 
@@ -569,6 +580,23 @@ const styles = StyleSheet.create({
   },
   headerCenter: {
     flex: 1,
+  },
+  headerBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerBrandName: {
+    fontFamily: FONTS.bold,
+    fontSize: 18,
+    color: COLORS.textPrimary,
+    letterSpacing: -0.5,
+  },
+  headerLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   modalOverlay: {
     flex: 1,
