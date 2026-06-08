@@ -378,30 +378,37 @@ export default function GlobalLayout({ children }) {
                 </View>
               )}
 
-              {/* Terms Checkbox */}
+              {/* Legal Disclaimer */}
               <View style={styles.termsContainer}>
-                <TouchableOpacity 
-                  style={styles.checkboxContainer} 
-                  onPress={() => setTermsAccepted(!termsAccepted)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
-                    {termsAccepted && <MaterialIcons name="check" size={16} color={COLORS.white} />}
-                  </View>
-                  <Text style={styles.termsText}>אני מאשר/ת את </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => {
-                  setSignUpModalVisible(false); // close without wiping form
-                  navigate('TermsOfService', { fromSignUp: true });
-                }}>
-                  <Text style={styles.termsLink}>תנאי השימוש</Text>
-                </TouchableOpacity>
+                <Text style={styles.termsText}>
+                  {'בהרשמה או התחברות לאפליקציה, הנך מסכים/ה ל'}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => {
+                      setSignUpModalVisible(false);
+                      navigate('TermsOfService', { fromSignUp: true });
+                    }}
+                  >
+                    תנאי השימוש
+                  </Text>
+                  {' ול'}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => {
+                      setSignUpModalVisible(false);
+                      navigate('PrivacyPolicy', { fromSignUp: true });
+                    }}
+                  >
+                    מדיניות הפרטיות
+                  </Text>
+                  {' שלנו.'}
+                </Text>
               </View>
 
               <TouchableOpacity 
-                style={[styles.submitBtn, (isSubmittingAuth || !termsAccepted) && { opacity: 0.7 }]} 
+                style={[styles.submitBtn, isSubmittingAuth && { opacity: 0.7 }]} 
                 onPress={handleSignUp}
-                disabled={isSubmittingAuth || !termsAccepted}
+                disabled={isSubmittingAuth}
               >
                 <Text style={styles.submitBtnText}>{isSubmittingAuth ? 'שומר...' : 'הרשמה'}</Text>
               </TouchableOpacity>
@@ -413,14 +420,8 @@ export default function GlobalLayout({ children }) {
               </View>
 
               <TouchableOpacity 
-                style={[styles.googleBtn, !termsAccepted && { opacity: 0.7 }]} 
-                onPress={() => {
-                  if (!termsAccepted) {
-                    setAuthError('יש לאשר את תנאי השימוש לפני ההרשמה עם גוגל');
-                    return;
-                  }
-                  handleGoogleLogin();
-                }}
+                style={styles.googleBtn} 
+                onPress={handleGoogleLogin}
               >
                 <AntDesign name="google" size={20} style={styles.googleIcon} />
                 <Text style={styles.googleBtnText}>המשך עם Google</Text>
@@ -737,40 +738,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  termsContainer: { 
-    flexDirection: 'row-reverse', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    marginBottom: SPACING.lg, 
-    marginTop: SPACING.sm 
+  termsContainer: {
+    marginBottom: SPACING.lg,
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
   },
-  checkboxContainer: { 
-    flexDirection: 'row-reverse', 
-    alignItems: 'center' 
+  checkboxContainer: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
   },
-  checkbox: { 
-    width: 22, 
-    height: 22, 
-    borderRadius: 6, 
-    borderWidth: 2, 
-    borderColor: COLORS.accent, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginLeft: 8 
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
-  checkboxChecked: { 
-    backgroundColor: COLORS.accent 
+  checkboxChecked: {
+    backgroundColor: COLORS.accent,
   },
-  termsText: { 
-    color: COLORS.textPrimary, 
+  termsText: {
+    color: COLORS.textSecondary,
     fontFamily: FONTS.regular,
-    fontSize: 14 
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
   },
-  termsLink: { 
-    color: COLORS.accent, 
+  termsLink: {
+    color: COLORS.accent,
     fontFamily: FONTS.bold,
-    fontSize: 14, 
-    textDecorationLine: 'underline' 
+    fontSize: 13,
+    textDecorationLine: 'underline',
   },
   switchAuth: {
     marginTop: SPACING.xl,

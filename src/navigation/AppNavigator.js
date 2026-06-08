@@ -8,6 +8,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import BusinessProfileScreen from '../screens/BusinessProfileScreen';
 import CompleteProfileScreen from '../screens/CompleteProfileScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import NextTimeListScreen from '../screens/NextTimeListScreen';
 import { useAuth } from '../context/AuthContext';
 
@@ -41,6 +42,7 @@ function MainNavigator() {
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="BusinessProfile" component={BusinessProfileScreen} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="NextTimeList" component={NextTimeListScreen} />
     </Stack.Navigator>
   );
