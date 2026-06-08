@@ -331,7 +331,9 @@ export default function RankingsScreen({ navigation, route }) {
 
               <View style={[styles.ratingBadge, { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, alignSelf: 'center' }]}>
                 <Text style={[styles.ratingBadgeText, { fontSize: 15 }]}>
-                  ★ {item.smart_score ? item.smart_score.toFixed(1) : '0.0'}
+                  {(item.review_count || 0) > 0
+                    ? `★ ${item.smart_score.toFixed(1)}`
+                    : 'טרם דורג'}
                 </Text>
               </View>
             </View>
@@ -398,7 +400,9 @@ export default function RankingsScreen({ navigation, route }) {
             <View style={[styles.leftSection, { height: 100, justifyContent: 'center' }]}>
               <View style={[styles.ratingBadge, { paddingVertical: 10, paddingHorizontal: 16, marginBottom: 12, alignSelf: 'flex-start' }]}>
                 <Text style={[styles.ratingBadgeText, { fontSize: 18 }]}>
-                  ★ {item.smart_score ? item.smart_score.toFixed(1) : '0.0'}
+                  {(item.review_count || 0) > 0
+                    ? `★ ${item.smart_score.toFixed(1)}`
+                    : 'טרם דורג'}
                 </Text>
               </View>
 

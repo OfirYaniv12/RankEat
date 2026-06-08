@@ -68,7 +68,10 @@ export default function DishCard({
           </>
         );
 
-  const scoreText = `★ ${(item.weighted_score || 0).toFixed(1)}`;
+  // Rule 2 (UI): Display "טרם דורג" for dishes with no reviews
+  const scoreText = (item.review_count || 0) > 0
+    ? `★ ${(item.weighted_score || 0).toFixed(1)}`
+    : 'טרם דורג';
 
   // Distance subtitle: show "במרחק X ק"מ ממך" when location is available, else address
   const subtitleText = (() => {

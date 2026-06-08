@@ -383,12 +383,14 @@ export default function DishReviewsModal({ visible, dish, onClose, onRefreshPare
                 </Text>
 
                 <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 12 }}>
-                  {dish?.weighted_score != null && (
+                {dish?.weighted_score != null && (
                     <View style={styles.scoreBadge}>
                       <Text style={styles.scoreBadgeText}>
-                        ★ {typeof dish.weighted_score === 'number'
-                          ? dish.weighted_score.toFixed(1)
-                          : dish.weighted_score}
+                        {(dish?.review_count || 0) > 0
+                          ? `★ ${typeof dish.weighted_score === 'number'
+                              ? dish.weighted_score.toFixed(1)
+                              : dish.weighted_score}`
+                          : 'טרם דורג'}
                       </Text>
                       <Text style={styles.scoreBadgeLabel}>ציון ממוצע</Text>
                     </View>

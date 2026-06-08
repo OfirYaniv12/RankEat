@@ -112,11 +112,12 @@ export const getRankedDishes = async ({ categoryId, districtId, cityId, nearbyBu
   const m = BAYESIAN_M;
 
   // Apply Bayesian Average: W = (R * v + C * m) / (v + m)
+  // Rule 2: Unrated dishes (v === 0) bypass the formula and get weighted_score = 0
   const dishes = rawDishes
     .map((d) => {
       const R = d.avg_rating || 0;
       const v = d.review_count || 0;
-      const weighted_score = (R * v + C * m) / (v + m);
+      const weighted_score = v === 0 ? 0 : (R * v + C * m) / (v + m);
 
       return {
         id: d.id,
@@ -391,9 +392,10 @@ export const getSavedDishes = async (userId) => {
   }
 
   const BAYESIAN_M = 10;
-  const allRatings = (allDishes || []).map(d => d.avg_rating || 0);
-  const C = allRatings.length > 0
-    ? allRatings.reduce((s, r) => s + r, 0) / allRatings.length
+  // Rule 1: Exclude dishes with 0 reviews from the global average (C)
+  const ratedDishes = (allDishes || []).filter(d => (d.review_count || 0) > 0);
+  const C = ratedDishes.length > 0
+    ? ratedDishes.reduce((s, d) => s + (d.avg_rating || 0), 0) / ratedDishes.length
     : 4.0;
 
   // ── 2. Fetch saved dishes with full dish + business join ──────────────────
@@ -432,8 +434,8 @@ export const getSavedDishes = async (userId) => {
       const d = row.dishes;
       const R = d.avg_rating || 0;
       const v = d.review_count || 0;
-      // Bayesian weighted score using global prior — same formula as getRankedDishes
-      const weighted_score = (R * v + C * BAYESIAN_M) / (v + BAYESIAN_M);
+      // Rule 2: Unrated dishes bypass Bayesian formula — weighted_score = 0
+      const weighted_score = v === 0 ? 0 : (R * v + C * BAYESIAN_M) / (v + BAYESIAN_M);
 
       return {
         id:            d.id,

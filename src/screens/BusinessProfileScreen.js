@@ -81,18 +81,20 @@ export default function BusinessProfileScreen({ route, navigation }) {
       // 2. Fetch all dishes in the database to calculate category-based global averages (C)
       const { data: allDishes, error: allDishesErr } = await supabase
         .from('dishes')
-        .select('avg_rating, category_id');
+        .select('avg_rating, category_id, review_count');
 
       if (allDishesErr) {
         console.error('Fetch All Dishes Error:', allDishesErr);
         throw allDishesErr;
       }
 
-      // Compute C (global average) for each category
+      // Compute C (global average) for each category — Rule 1: exclude dishes with 0 reviews
       const categoryAverages = {};
       if (allDishes && allDishes.length > 0) {
         const categoryGroups = {};
         allDishes.forEach(d => {
+          // Only include dishes that have been reviewed
+          if ((d.review_count || 0) === 0) return;
           const catId = d.category_id;
           if (!categoryGroups[catId]) {
             categoryGroups[catId] = { sum: 0, count: 0 };
@@ -120,12 +122,20 @@ export default function BusinessProfileScreen({ route, navigation }) {
 
       // 4. Compute Bayesian Average (Weighted Smart Score) for each dish of this restaurant
       // Formula: W = (R * v + C * m) / (v + m)
+      // Rule 2: Dishes with 0 reviews bypass the formula and get weighted_score = 0
       const m = 10; // minimum votes threshold (BAYESIAN_M)
       const formattedDishes = (dishesData || []).map(d => {
         const R = d.avg_rating || 0;
         const v = d.review_count || 0;
-        const C = categoryAverages[d.category_id] !== undefined ? categoryAverages[d.category_id] : 4.0;
-        const weighted_score = (R * v + C * m) / (v + m);
+
+        let weighted_score;
+        if (v === 0) {
+          // Unrated: sorting value is 0, UI will show "טרם דורג"
+          weighted_score = 0;
+        } else {
+          const C = categoryAverages[d.category_id] !== undefined ? categoryAverages[d.category_id] : 4.0;
+          weighted_score = (R * v + C * m) / (v + m);
+        }
 
         return {
           ...d,
@@ -133,7 +143,7 @@ export default function BusinessProfileScreen({ route, navigation }) {
         };
       });
 
-      // Sort strictly by smart score in DESCENDING order
+      // Sort strictly by smart score in DESCENDING order (unrated dishes, score=0, fall to bottom)
       formattedDishes.sort((a, b) => b.weighted_score - a.weighted_score);
       setDishes(formattedDishes);
 
@@ -246,7 +256,9 @@ export default function BusinessProfileScreen({ route, navigation }) {
             {/* Far Left: Rating Pill */}
             <View style={styles.ratingPill}>
               <Text style={styles.ratingText}>
-                ★ {item.weighted_score ? item.weighted_score.toFixed(1) : '0.0'}
+                {(item.review_count || 0) > 0
+                  ? `★ ${item.weighted_score.toFixed(1)}`
+                  : 'טרם דורג'}
               </Text>
             </View>
           </View>
@@ -276,10 +288,11 @@ export default function BusinessProfileScreen({ route, navigation }) {
       : businessData.cities?.name || 'עיר לא ידועה';
 
     // Recalculate Overall Restaurant Rating based on dynamic SMART scores
-    const validDishes = dishes.filter(d => d.weighted_score !== null && d.weighted_score !== undefined);
+    // Rule 2: Only average dishes that have at least 1 review
+    const validDishes = dishes.filter(d => (d.review_count || 0) > 0);
     const overallRating = validDishes.length > 0
       ? (validDishes.reduce((sum, d) => sum + d.weighted_score, 0) / validDishes.length).toFixed(1)
-      : '0.0';
+      : null;
 
     return (
       <View style={{ zIndex: 10 }}>
@@ -308,7 +321,9 @@ export default function BusinessProfileScreen({ route, navigation }) {
           
           {/* Prominent Restaurant Overall Rating Pill */}
           <View style={styles.ratingBadgeContainer}>
-            <Text style={styles.ratingBadgeValue}>★ {overallRating}</Text>
+            <Text style={styles.ratingBadgeValue}>
+              {overallRating !== null ? `★ ${overallRating}` : 'טרם דורג'}
+            </Text>
             <Text style={styles.ratingBadgeText}>ציון מסעדה ממוצע</Text>
           </View>
         </View>

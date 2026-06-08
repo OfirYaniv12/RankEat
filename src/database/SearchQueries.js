@@ -32,9 +32,10 @@ export const normalizeText = (text) => {
 // ─── GLOBAL AVERAGES ────────────────────────────────────────────────────────
 // Fetches the global baseline averages across the entire app for Bayesian math
 export const getGlobalCategoryAverages = async () => {
+  // Fetch review_count so we can exclude unrated dishes from the baseline
   const { data: dishes, error } = await supabase
     .from('dishes')
-    .select('category_id, avg_rating');
+    .select('category_id, avg_rating, review_count');
 
   if (error) {
     console.error('getGlobalCategoryAverages error:', error);
@@ -46,6 +47,9 @@ export const getGlobalCategoryAverages = async () => {
   let totalCount = 0;
 
   dishes.forEach(d => {
+    // Rule 1: Exclude dishes with 0 reviews from the global average (C)
+    if ((d.review_count || 0) === 0) return;
+
     const catId = d.category_id;
     if (!categoryGroups[catId]) categoryGroups[catId] = { sum: 0, count: 0 };
     categoryGroups[catId].sum += (d.avg_rating || 0);
@@ -187,17 +191,21 @@ export const getRankedRestaurants = async ({ nameQuery, searchMode, selectedLoca
 
     if (b.dishes && b.dishes.length > 0) {
       b.dishes.forEach(d => {
-        const R = d.avg_rating || 0;
         const v = d.review_count || 0;
+        totalReviews += v;
+
+        // Rule 2: Skip unrated dishes — don't include them in the restaurant average
+        if (v === 0) return;
+
+        const R = d.avg_rating || 0;
         const C = categoryAverages[d.category_id] !== undefined ? categoryAverages[d.category_id] : 4.0;
         const weighted_score = (R * v + C * m) / (v + m);
-        
         dishScoresSum += weighted_score;
         validDishesCount += 1;
-        totalReviews += v;
       });
     }
 
+    // Rule 2: If no rated dishes exist, smart_score = 0 (falls to bottom of rankings)
     const smartScore = validDishesCount > 0 ? (dishScoresSum / validDishesCount) : 0.0;
 
     return {
@@ -360,7 +368,7 @@ export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }
 
   console.log("Detailed Dish Data (Before mapping):", JSON.stringify(rawDishes.slice(0, 2), null, 2));
 
-  // Compute global average rating (C) using global baseline, not just the local radius
+  // Compute global average rating (C) using global baseline (rated dishes only), not just the local radius
   const BAYESIAN_M = 10;
   const { globalAvg } = await getGlobalCategoryAverages();
   const C = globalAvg;
@@ -369,10 +377,12 @@ export const getNearbyDishes = async ({ userLat, userLon, radiusKm, categoryId }
   const dishes = rawDishes.map(d => {
     const R = d.avg_rating || 0;
     const v = d.review_count || 0;
-    const weighted_score = (R * v + C * BAYESIAN_M) / (v + BAYESIAN_M);
-    
+
+    // Rule 2: If dish has 0 reviews, bypass Bayesian formula and set score to 0
+    const weighted_score = v === 0 ? 0 : (R * v + C * BAYESIAN_M) / (v + BAYESIAN_M);
+
     const biz = d.businesses || {};
-    
+
     return {
       id: d.id,
       name: d.name,
@@ -455,18 +465,23 @@ export const getNearbyRestaurants = async ({ userLat, userLon, radiusKm, nameQue
   // Step 3: Explicit Property Mapping & Merge
   let results = businesses.map(b => {
     let dishScoresSum = 0, validDishesCount = 0, totalReviews = 0;
-    
+
     if (b.dishes && b.dishes.length > 0) {
       b.dishes.forEach(d => {
-        const R = d.avg_rating || 0;
         const v = d.review_count || 0;
+        totalReviews += v;
+
+        // Rule 2: Skip unrated dishes — don't include them in the restaurant average
+        if (v === 0) return;
+
+        const R = d.avg_rating || 0;
         const C = categoryAverages[d.category_id] ?? 4.0;
         dishScoresSum += (R * v + C * BAYESIAN_M) / (v + BAYESIAN_M);
         validDishesCount += 1;
-        totalReviews += v;
       });
     }
 
+    // Rule 2: If no rated dishes exist, smart_score = 0 (falls to bottom of rankings)
     const smartScore = validDishesCount > 0 ? (dishScoresSum / validDishesCount) : 0.0;
 
     return {
